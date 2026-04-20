@@ -65,10 +65,11 @@ def compute_confusion_matrix(
 
 def compute_confusion_matrix_rf(
         data: list, labels: list, users: list,
+        include_pca_evr: bool = True,
         title: str = "Confusion matrix – RF"
 ) -> None:
     """Confusion matrix for Random Forest (user-independent)."""
-    X = build_feature_dataset(data)
+    X = build_feature_dataset(data, include_pca_evr)
     y = np.array(labels)
     unique_users = sorted(set(users))
     y_true, y_pred = [], []
@@ -165,7 +166,7 @@ def draw_best_model_cm(
 
     elif best_name == "RF":
         compute_confusion_matrix_rf(
-            data_std, labels, users,
+            data_std, labels, users, include_pca_evr=True,
             title=f"RF – {tag}")
 
     elif best_name == "LSTM":

@@ -22,3 +22,9 @@ DOMAIN4_CLASS_NAMES = {
     7: "Pyramid",     8: "Tetrahedron",9: "Cone",
     10: "Toroid",
 }
+
+K_CLUSTERS     = 20   # number of k-means clusters for symbolic encoding
+LSTM_MAX_LEN   = 150  # padding length for LSTM input
+LSTM_EPOCHS    = 30   # training epochs (user-independent)
+LSTM_EPOCHS_UD = 30   # training epochs (user-dependent)
+RF_N_TREES     = 100  # Random Forest estimators
