@@ -1,0 +1,14 @@
+numpy
+scipy
+pandas
+scikit-learn
+joblib         
+
+# macOS Apple Silicon only
+tensorflow-macos
+tensorflow-metal
+
+numba
+llvmlite     
+matplotlib
+statsmodels
