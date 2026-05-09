@@ -1,0 +1,49 @@
+# ============================================================
+#  MLSM2154 — Gesture Recognition Project
+#  Python 3.12  |  Tested on macOS (Apple Silicon & Intel)
+#                   and Linux x86-64
+#
+#  Compatibility matrix (critical):
+#    tensorflow 2.19.x  → requires numpy >=2.0
+#    numba 0.61.x       → requires numpy >=1.24, <2.3  (2.x OK)
+#                       → requires llvmlite 0.44.x
+#    numba 0.61.x       → supports Python 3.12 ✓
+# ============================================================
+
+# --- Core numerics ---
+numpy
+scipy
+
+# --- Data handling ---
+pandas
+
+# --- Machine learning ---
+scikit-learn
+joblib          # bundled with sklearn but pinned for Parallel stability
+
+# --- Deep learning ---
+# Use tensorflow-cpu if you are on a CPU-only machine (lighter, faster install)
+# Switch to tensorflow==2.19.1 for GPU support (requires CUDA 12.x)
+
+# macOS Apple Silicon uniquement
+tensorflow-macos
+tensorflow-metal
+
+# --- JIT compilation (DTW / Edit Distance acceleration) ---
+numba
+llvmlite      # must match numba version exactly — do not change
+
+# --- Visualisation ---
+matplotlib
+
+# --- Statistics ---
+statsmodels
+
+# ============================================================
+#  NOTES
+#  • joblib is already a dependency of scikit-learn; pinning it
+#    here ensures the version used by Parallel() is stable.
+#  • Do NOT upgrade numba or llvmlite independently — they are
+#    tightly coupled (numba 0.61 ↔ llvmlite 0.44).
+#  • tensorflow-cpu and tensorflow cannot coexist; pick one.
+# ============================================================
