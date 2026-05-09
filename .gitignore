@@ -7,6 +7,9 @@
 # On ignore le dossier de données pour éviter de saturer GitHub
 GestureData_Mons/
 
+Resources/
+Archive/
+
 # --- Environnements Virtuels (Python) ---
 .venv/
 venv/
