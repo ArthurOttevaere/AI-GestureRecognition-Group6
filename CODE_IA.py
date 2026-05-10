@@ -12,8 +12,12 @@ Phase 2 : Pre-processing
             - k-means clustering INSIDE each CV fold (rigorous):
                 * Fitted on training-set 3D points only per fold
                 * Centroids applied to encode both train and test sequences
-Phase 3 : Baseline methods (DTW + Edit Distance) with 1-NN classifier
-Phase 4 : Advanced methods (Random Forest with GridSearchCV, $1 Recognizer 3D)
+Phase 3 : Baseline methods (DTW + Edit Distance with k-means quantization)
+            - 1-NN classifier for both
+Phase 4 : Advanced methods
+            - Random Forest with GridSearchCV (nested CV) + feature importance
+            - $1 Recognizer 3D (Kratz & Rohs, 2010) with Rodrigues rotation,
+              uniform cube scaling, confidence score, and N-best list
 Phase 5 : Cross-validation
             - User-independent : leave-one-user-out (10 folds)
             - User-dependent   : leave-one-sample-out (10 folds)
@@ -69,7 +73,18 @@ Major scientific decisions
    (3-fold inner CV). Feature importances analysed post-hoc to
    identify and prune uninformative features.
 
-6. K-clustering / k-NN K selected via empirical validation curves
+6. Hyperparameter tuning asymmetry. Random Forest hyperparameters are
+   selected per-fold via GridSearchCV (nested CV, inner CV = 3 folds).
+   DTW and Edit Distance hyperparameters (kNN K, k-means K) are selected
+   once via empirical validation curves on the full user-independent CV,
+   then kept fixed for evaluation. This asymmetry is intentional: DTW
+   and Edit Distance have at most 2 scalar hyperparameters with a clear
+   plateau; RF has a combinatorial grid that requires per-fold tuning to
+   avoid overfitting. The comparison is therefore between best-configured
+   versions of each method, not between methods sharing an identical
+   tuning protocol. This limitation is acknowledged in the report.
+
+7. K-clustering / k-NN K selected via empirical validation curves
    (accuracy vs K) on the user-independent CV.
 
 References
@@ -429,6 +444,25 @@ def fit_kmeans_and_encode(train_data: list,
 
 @njit(cache=True)
 def dtw_distance(seq1: np.ndarray, seq2: np.ndarray) -> float:
+    """
+    Dynamic Time Warping distance between two 3D sequences.
+
+    The local cost is the Euclidean distance between 3D points.
+    The warping path uses the standard three-move DTW (diagonal, left,
+    up), with the diagonal weighted x2 to discourage over-stretching.
+
+    The raw accumulated cost g[I, J] is normalised by (I + J) to make
+    the distance comparable across sequence pairs of different lengths.
+    This normalisation is not part of the original DTW formulation
+    (Sakoe & Chiba, 1978) but is standard practice in gesture
+    recognition literature (cf. Mueller, 2007, "Information Retrieval
+    for Music and Motion", Ch. 4).
+
+    Returns
+    -------
+    float
+        Normalised DTW distance in [0, +inf).
+    """
     I, J = len(seq1), len(seq2)
     g = np.full((I + 1, J + 1), np.inf)
     g[0, 0] = 0.0
@@ -465,6 +499,8 @@ def edit_distance(seq1: np.ndarray, seq2: np.ndarray) -> int:
 
 # ==============================================================================
 # 4b.  $1 RECOGNIZER -- 3D ADAPTATION FOLLOWING KRATZ & ROHS (2010)
+#     [Advanced method -- placed here for implementation proximity to baseline
+#      distance functions; classified as advanced per module docstring Phase 4]
 # ==============================================================================
 # The 2D $1 Recognizer of Wobbrock, Wilson & Li (2007) is extended to 3D
 # according to the canonical procedure of Kratz & Rohs (2010), "A $3
@@ -614,12 +650,17 @@ def dollar_preprocess(points: np.ndarray,
     """
     Apply Steps 1-4 of the $3 (Kratz & Rohs, 2010) preprocessing.
     Used once on training templates (cached) and once on each candidate.
+    Step order: resample -> translate to origin -> rotate to indicative
+    angle -> scale to unit cube.
+    The second translate-to-origin after scaling is omitted: uniform
+    scaling preserves the centroid at the origin.
     """
     pts = dollar_resample(points, n)
     pts = _dollar_translate_to_origin(pts)
     pts = _dollar_align_to_indicative_axis(pts)
     pts = _dollar_scale_cube(pts, l)
-    pts = _dollar_translate_to_origin(pts)
+    # Second _dollar_translate_to_origin removed: uniform scaling
+    # preserves centroid at origin (no displacement).
     return pts
 
 
@@ -692,7 +733,8 @@ def knn_predict_from_distances(distances: np.ndarray,
 # ==============================================================================
 
 def extract_features(sequence: np.ndarray,
-                      evr: np.ndarray | None = None) -> np.ndarray:
+                      evr: np.ndarray | None = None,
+                      feature_mask: list | None = None) -> np.ndarray:
     """
     Fixed-length feature vector for the RF classifier.
     Composition (53 with EVR, 50 without):
@@ -704,6 +746,13 @@ def extract_features(sequence: np.ndarray,
       - per-segment speed and displacement, begin/middle/end (6)
       - per-axis path length (3)
       - PCA EVR (3, optional)
+
+    Parameters
+    ----------
+    feature_mask : list of str, optional
+        If provided, only features whose name appears in this list are
+        returned. Computed from RF feature importances post-hoc.
+        None = return all features (default).
     """
     features = []
 
@@ -776,7 +825,12 @@ def extract_features(sequence: np.ndarray,
     if evr is not None:
         features.extend(evr.tolist())
 
-    return np.array(features, dtype=float)
+    feat_array = np.array(features, dtype=float)
+    if feature_mask is not None:
+        names = feature_names(with_evr=(evr is not None))
+        mask_idx = [i for i, n in enumerate(names) if n in feature_mask]
+        return feat_array[mask_idx]
+    return feat_array
 
 
 def feature_names(with_evr: bool) -> list:
@@ -797,11 +851,13 @@ def feature_names(with_evr: bool) -> list:
 
 
 def build_feature_dataset(data: list,
-                           evr_list: list | None = None) -> np.ndarray:
+                           evr_list: list | None = None,
+                           feature_mask: list | None = None) -> np.ndarray:
     if evr_list is not None:
-        return np.array([extract_features(seq, evr)
+        return np.array([extract_features(seq, evr, feature_mask)
                          for seq, evr in zip(data, evr_list)])
-    return np.array([extract_features(seq, None) for seq in data])
+    return np.array([extract_features(seq, None, feature_mask)
+                     for seq in data])
 
 
 # ==============================================================================
@@ -882,7 +938,9 @@ def _aggregate_gu_accuracy(per_sample_correct: dict,
 # -- DTW ----------------------------------------------------------------------
 
 def crossval_ui_dtw(data_pca: list, labels: list, users: list,
-                     folds: list) -> tuple[float, float, list, np.ndarray]:
+                     folds: list,
+                     knn_k: int = KNN_K
+                     ) -> tuple[float, float, list, np.ndarray]:
     fold_accs = []
     correct: dict = {}
     for fold_num, (tr, te) in enumerate(folds):
@@ -892,7 +950,7 @@ def crossval_ui_dtw(data_pca: list, labels: list, users: list,
         te_labels = [labels[i]   for i in te]
         preds = Parallel(n_jobs=-1, prefer="threads")(
             delayed(knn_predict)(ts, tr_items, tr_labels,
-                                 dtw_distance, KNN_K)
+                                 dtw_distance, knn_k)
             for ts in te_items
         )
         acc = float(np.mean([p == t for p, t in zip(preds, te_labels)]))
@@ -906,7 +964,9 @@ def crossval_ui_dtw(data_pca: list, labels: list, users: list,
 
 
 def crossval_ud_dtw(data_pca: list, labels: list, users: list,
-                     folds: list) -> tuple[float, float, list, np.ndarray]:
+                     folds: list,
+                     knn_k: int = KNN_K
+                     ) -> tuple[float, float, list, np.ndarray]:
     fold_accs = []
     correct: dict = {}
     for fold_num, (tr, te, te_users) in enumerate(folds):
@@ -921,7 +981,7 @@ def crossval_ud_dtw(data_pca: list, labels: list, users: list,
             tr_labels_u = [labels[tr[j]]   for j in same_user_mask]
             preds.append(
                 knn_predict(ts, tr_items_u, tr_labels_u,
-                            dtw_distance, KNN_K)
+                            dtw_distance, knn_k)
             )
         acc = float(np.mean([p == t for p, t in zip(preds, te_labels)]))
         fold_accs.append(acc)
@@ -1019,9 +1079,10 @@ def crossval_ui_rf(data_pca: list, labels: list, users: list,
                     folds: list,
                     evr_list: list | None = None,
                     tag: str = "",
-                    use_grid_search: bool = True
+                    use_grid_search: bool = True,
+                    feature_mask: list | None = None
                     ) -> tuple[float, float, list, np.ndarray]:
-    X         = build_feature_dataset(data_pca, evr_list)
+    X         = build_feature_dataset(data_pca, evr_list, feature_mask)
     y         = np.array(labels)
     fold_accs = []
     correct: dict = {}
@@ -1048,9 +1109,10 @@ def crossval_ud_rf(data_pca: list, labels: list, users: list,
                     folds: list,
                     evr_list: list | None = None,
                     tag: str = "",
-                    use_grid_search: bool = True
+                    use_grid_search: bool = True,
+                    feature_mask: list | None = None
                     ) -> tuple[float, float, list, np.ndarray]:
-    X         = build_feature_dataset(data_pca, evr_list)
+    X         = build_feature_dataset(data_pca, evr_list, feature_mask)
     y         = np.array(labels)
     fold_accs = []
     correct: dict = {}
@@ -1297,7 +1359,9 @@ def validation_curve_knn(data_pca: list, labels: list, users: list,
 def run_ablation_study(data_raw: list, data_std: list,
                         data_denoised: list, evr_list: list,
                         labels: list, users: list,
-                        domain: int
+                        domain: int,
+                        k_clusters: int = K_CLUSTERS,
+                        knn_k: int = KNN_K
                         ) -> tuple[pd.DataFrame, dict]:
     """
     Compare four methods under three preprocessing conditions on UI 10-fold
@@ -1308,6 +1372,15 @@ def run_ablation_study(data_raw: list, data_std: list,
     (a) No preprocessing
     (b) Standardisation only
     (c) Standardisation + per-gesture PCA denoising (full pipeline)
+
+    Parameters
+    ----------
+    k_clusters : int
+        k-means K used by the Edit-Distance pipeline (per-domain optimum
+        from validation curves).
+    knn_k : int
+        kNN K used by the DTW pipeline (per-domain optimum from
+        validation curves).
     """
     print(f"\n{'='*65}")
     print(f"  ABLATION STUDY | Domain {domain} | User-independent")
@@ -1332,9 +1405,11 @@ def run_ablation_study(data_raw: list, data_std: list,
         results[method][cond] = (mean, std, folds, gu)
 
     print("\n  (a) No preprocessing")
-    m, s, f, gu = crossval_ui_edit(data_raw, labels, users, folds_ui)
+    m, s, f, gu = crossval_ui_edit(data_raw, labels, users, folds_ui,
+                                    k_clusters=k_clusters)
     _record("(a) No preprocessing", "Edit Distance", m, s, f, gu)
-    m, s, f, gu = crossval_ui_dtw(data_raw, labels, users, folds_ui)
+    m, s, f, gu = crossval_ui_dtw(data_raw, labels, users, folds_ui,
+                                    knn_k=knn_k)
     _record("(a) No preprocessing", "DTW", m, s, f, gu)
     m, s, f, gu = crossval_ui_rf(data_raw, labels, users, folds_ui,
                                    evr_list=None, tag=" [no EVR]")
@@ -1343,9 +1418,11 @@ def run_ablation_study(data_raw: list, data_std: list,
     _record("(a) No preprocessing", "$1", m, s, f, gu)
 
     print("\n  (b) Standardisation only")
-    m, s, f, gu = crossval_ui_edit(data_std, labels, users, folds_ui)
+    m, s, f, gu = crossval_ui_edit(data_std, labels, users, folds_ui,
+                                    k_clusters=k_clusters)
     _record("(b) Standardisation", "Edit Distance", m, s, f, gu)
-    m, s, f, gu = crossval_ui_dtw(data_std, labels, users, folds_ui)
+    m, s, f, gu = crossval_ui_dtw(data_std, labels, users, folds_ui,
+                                    knn_k=knn_k)
     _record("(b) Standardisation", "DTW", m, s, f, gu)
     m, s, f, gu = crossval_ui_rf(data_std, labels, users, folds_ui,
                                    evr_list=None, tag=" [no EVR]")
@@ -1354,9 +1431,11 @@ def run_ablation_study(data_raw: list, data_std: list,
     _record("(b) Standardisation", "$1", m, s, f, gu)
 
     print("\n  (c) Standardisation + PCA denoising 3D->2D->3D")
-    m, s, f, gu = crossval_ui_edit(data_denoised, labels, users, folds_ui)
+    m, s, f, gu = crossval_ui_edit(data_denoised, labels, users, folds_ui,
+                                    k_clusters=k_clusters)
     _record("(c) Std + PCA denoise", "Edit Distance", m, s, f, gu)
-    m, s, f, gu = crossval_ui_dtw(data_denoised, labels, users, folds_ui)
+    m, s, f, gu = crossval_ui_dtw(data_denoised, labels, users, folds_ui,
+                                    knn_k=knn_k)
     _record("(c) Std + PCA denoise", "DTW", m, s, f, gu)
     m, s, f, gu = crossval_ui_rf(data_denoised, labels, users, folds_ui,
                                    evr_list=evr_list, tag=" [+EVR]")
@@ -1738,41 +1817,43 @@ if __name__ == "__main__":
     print("\n=== Validation curves - hyperparameter K ===")
     print("  Domain 1 - K_CLUSTERS scan (Edit Distance UI):")
     best_k_clusters_d1 = validation_curve_kclusters(
-        data1_denoised, labels1, users1, folds_ui_1,
+        data1_std, labels1, users1, folds_ui_1,
         domain=1, save_path="d1_vc_kclusters.png")
     print("  Domain 1 - kNN K scan (DTW UI):")
     best_knn_k_d1 = validation_curve_knn(
-        data1_denoised, labels1, users1, folds_ui_1,
+        data1_std, labels1, users1, folds_ui_1,
         method="dtw", domain=1, save_path="d1_vc_knn.png")
-    print(f"  Domain 1 selected: K_CLUSTERS={best_k_clusters_d1}, "
-          f"KNN_K={best_knn_k_d1}")
+    print(f"  Domain 1 selected (on standardised data): "
+          f"K_CLUSTERS={best_k_clusters_d1}, KNN_K={best_knn_k_d1}")
 
     print("\n  Domain 4 - K_CLUSTERS scan (Edit Distance UI):")
     best_k_clusters_d4 = validation_curve_kclusters(
-        data4_denoised, labels4, users4, folds_ui_4,
+        data4_std, labels4, users4, folds_ui_4,
         domain=4, save_path="d4_vc_kclusters.png")
     print("  Domain 4 - kNN K scan (DTW UI):")
     best_knn_k_d4 = validation_curve_knn(
-        data4_denoised, labels4, users4, folds_ui_4,
+        data4_std, labels4, users4, folds_ui_4,
         method="dtw", domain=4, save_path="d4_vc_knn.png")
-    print(f"  Domain 4 selected: K_CLUSTERS={best_k_clusters_d4}, "
-          f"KNN_K={best_knn_k_d4}")
+    print(f"  Domain 4 selected (on standardised data): "
+          f"K_CLUSTERS={best_k_clusters_d4}, KNN_K={best_knn_k_d4}")
 
-    # NOTE: validation curves are reported in the manuscript but the main
-    # evaluation below uses the global defaults K_CLUSTERS / KNN_K so that
-    # the ablation study and statistical tests remain comparable across
-    # domains. Per-domain optima can be reported separately.
+    # Hyperparameters selected per domain via empirical validation curves above.
+    # K_CLUSTERS and KNN_K globals are used as defaults only (validation curve scan).
 
     # -- 7. Ablation study ------------------------------------------------
     print("\n=== Ablation Study - Domain 1 ===")
     _, best_prep_d1 = run_ablation_study(
         data1, data1_std, data1_denoised, evr1,
-        labels1, users1, domain=1)
+        labels1, users1, domain=1,
+        k_clusters=best_k_clusters_d1,
+        knn_k=best_knn_k_d1)
 
     print("\n=== Ablation Study - Domain 4 ===")
     _, best_prep_d4 = run_ablation_study(
         data4, data4_std, data4_denoised, evr4,
-        labels4, users4, domain=4)
+        labels4, users4, domain=4,
+        k_clusters=best_k_clusters_d4,
+        knn_k=best_knn_k_d4)
 
     def _ud_data_for(best_entry: dict,
                      raw: list, std: list, denoised: list,
@@ -1789,14 +1870,23 @@ if __name__ == "__main__":
     print("\n=== RF feature importance analysis ===")
     rf_d1_data, rf_d1_evr = _ud_data_for(best_prep_d1["RF"],
                                           data1, data1_std, data1_denoised, evr1)
-    analyse_rf_feature_importances(rf_d1_data, labels1, rf_d1_evr,
-                                     domain=1,
-                                     save_path="d1_rf_feature_importance.png")
+    kept_features_d1 = analyse_rf_feature_importances(
+        rf_d1_data, labels1, rf_d1_evr, domain=1,
+        save_path="d1_rf_feature_importance.png")
     rf_d4_data, rf_d4_evr = _ud_data_for(best_prep_d4["RF"],
                                           data4, data4_std, data4_denoised, evr4)
-    analyse_rf_feature_importances(rf_d4_data, labels4, rf_d4_evr,
-                                     domain=4,
-                                     save_path="d4_rf_feature_importance.png")
+    kept_features_d4 = analyse_rf_feature_importances(
+        rf_d4_data, labels4, rf_d4_evr, domain=4,
+        save_path="d4_rf_feature_importance.png")
+
+    if len(kept_features_d1) == 0:
+        print("  [WARNING] No features passed importance threshold; "
+              "using full feature set.")
+        kept_features_d1 = None
+    if len(kept_features_d4) == 0:
+        print("  [WARNING] No features passed importance threshold; "
+              "using full feature set.")
+        kept_features_d4 = None
 
     # -- 9. Domain 1 - UI (reuse ablation fold accuracies) ----------------
     print("\n=== Main Evaluation - Domain 1 - User-Independent ===")
@@ -1849,7 +1939,8 @@ if __name__ == "__main__":
     print(f"\n  Random Forest  [{best_prep_d1['RF']['condition']}]:")
     mean_rf1_ud, std_rf1_ud, folds_rf1_ud, _ = crossval_ud_rf(
         d1_rf_data, labels1, users1, folds_ud_1,
-        evr_list=d1_rf_evr, tag=" [adaptive]")
+        evr_list=d1_rf_evr, tag=" [adaptive]",
+        feature_mask=kept_features_d1)
     save_fold_results(folds_rf1_ud, "rf", "user_dependent", 1)
 
     print(f"\n  $1 Recognizer  [{best_prep_d1['$1']['condition']}]:")
@@ -1935,7 +2026,8 @@ if __name__ == "__main__":
     print(f"\n  Random Forest  [{best_prep_d4['RF']['condition']}]:")
     mean_rf4_ud, std_rf4_ud, folds_rf4_ud, _ = crossval_ud_rf(
         d4_rf_data, labels4, users4, folds_ud_4,
-        evr_list=d4_rf_evr, tag=" [adaptive]")
+        evr_list=d4_rf_evr, tag=" [adaptive]",
+        feature_mask=kept_features_d4)
     save_fold_results(folds_rf4_ud, "rf", "user_dependent", 4)
 
     print(f"\n  $1 Recognizer  [{best_prep_d4['$1']['condition']}]:")
