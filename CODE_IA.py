@@ -1,129 +1,90 @@
 """
-MLSM2154 – Artificial Intelligence: Gesture Recognition Project
+MLSM2154 — Artificial Intelligence: Gesture Recognition Project
 ===============================================================
 Phase 1 : Data loading & exploratory analysis
 Phase 2 : Pre-processing
             - Per-gesture standardisation (zero mean, unit std per axis)
-            - Per-gesture PCA denoising (3D → 2D → 3D):
+            - Per-gesture PCA denoising (3D -> 2D -> 3D):
                 * PCA fitted on the T time-step points of each gesture
                 * Projection onto the 2 principal components (2D)
                 * Back-projection into the original 3D space
-                * This removes sensor noise captured by PC3 while
-                  preserving the intrinsic planar geometry of the gesture.
-                * The 3 EVR values are ALSO stored as additional RF features.
+                * The 3 EVR values are also stored as additional RF features.
             - k-means clustering INSIDE each CV fold (rigorous):
                 * Fitted on training-set 3D points only per fold
                 * Centroids applied to encode both train and test sequences
 Phase 3 : Baseline methods (DTW + Edit Distance) with 1-NN classifier
-Phase 4 : Advanced methods (Random Forest, LSTM, $1 Recognizer 3D)
+Phase 4 : Advanced methods (Random Forest with GridSearchCV, $1 Recognizer 3D)
 Phase 5 : Cross-validation
             - User-independent : leave-one-user-out (10 folds)
-                Each fold holds out ALL data of 1 user; trains on the
-                remaining 9 users.
-                kNN compares test gesture against ALL training gestures
-                (from all 9 training users).
             - User-dependent   : leave-one-sample-out (10 folds)
-                Each fold holds out repetition #f of EVERY gesture of
-                EVERY user simultaneously; trains on the other 9
-                repetitions of all users.
-                kNN compares test gesture of user U against training
-                gestures of the SAME user U only.
-          ALL methods use IDENTICAL fold indices (generated once via
-          _ui_fold_indices / _ud_fold_indices) so that train/test sets
-          are guaranteed to be the same across every method — a
-          prerequisite for valid statistical comparison.
-          Ablation study: 5 methods x 3 preprocessing conditions
-            (a) No preprocessing
-            (b) Standardisation only
-            (c) Standardisation + per-gesture PCA denoising (full pipeline)
-Phase 6 : Statistical tests (Wilcoxon signed-rank on IDENTICAL fold
-          vectors, raw p-values + Benjamini-Hochberg FDR correction
-          + permutation test for robustness)
-          – user-independent only, as required by the course guidelines.
+          Ablation study: 4 methods x 3 preprocessing conditions
+Phase 6 : Hyperparameter validation curves (empirical iterative selection)
+Phase 7 : Statistical tests
+            - Paired Wilcoxon signed-rank test on n=100 paired observations
+              (10 gestures x 10 users), one accuracy per (gesture, user) pair
+              for each method.
+            - Bonferroni correction + Benjamini-Hochberg FDR correction.
+            - Pairwise p-value matrix saved as CSV + heatmap.
 
-Design decisions & scientific justifications
---------------------------------------------
-1. Per-gesture PCA denoising (3D → 2D → 3D)
-   A PCA is fitted independently on the T time-step points of each
-   individual gesture AFTER standardisation and BEFORE clustering.
-   Step 1: project onto the 2 principal axes  → (T, 2)
-   Step 2: back-project into the original 3D space → (T, 3)
-   This removes the variance captured by PC3, which for quasi-planar
-   gestures (e.g. drawn digits) corresponds mainly to sensor noise.
-   Because PCA parameters are estimated from the gesture's own T points
-   only, there is no cross-fold data leakage.
-   The 3 EVR values (before truncation) are stored separately and used
-   as additional features for the RF classifier.
+Major scientific decisions
+--------------------------
+1. $1 Recognizer — 3D adaptation following Kratz & Rohs (2010).
+   The original $1 algorithm of Wobbrock, Wilson & Li (2007) is purely 2D
+   and provides no empirical validation in 3D. We follow the canonical
+   3D extension of Kratz & Rohs (2010) "A $3 Gesture Recognizer", IUI'10:
+     - Step 2: rotation around the axis defined by the cross product
+                pâ x c, where c is the centroid and pâ is the first
+                resampled point. The angle is the arccos of the
+                normalised dot product. Rotation applied via Rodrigues'
+                formula.
+     - Step 3: scaling INSIDE a normalised cube of side l (uniform
+                rescaling), avoiding axis-by-axis scaling and the
+                division-by-zero issue for quasi-planar gestures.
+     - Score:  S = 1 - d / (0.5 * sqrt(3) * l), where d is the mean
+                point-to-point Euclidean distance after alignment.
+                The factor sqrt(3) replaces sqrt(2) of the 2D paper:
+                this is the diagonal of the unit cube versus the
+                diagonal of the unit square.
+     - Templates are preprocessed only ONCE and cached, as specified
+       by Wobbrock et al. (2007).
+     - Recognize returns a sorted N-best list, allowing kNN with k>1.
+     - Golden Section Search refinement (Kratz & Rohs, 2010, sec.
+       "Search for Minimum Distance at Best Angle") is NOT implemented
+       to limit computational cost.
 
-2. k-means inside cross-validation (rigorous mode)
-   For Edit Distance, k-means is fitted ONLY on training-set 3D points
-   at each CV fold, then the learned centroids are applied to encode
-   both training and test sequences.  This strictly follows the course
-   guideline: "the most rigorous method would require you to perform the
-   clustering inside the cross-validation only on the training set".
+2. Wilcoxon n=100. For each method, a 100-vector of accuracies is built,
+   one per (gesture, user) pair. Pairs are then compared method-vs-method
+   via scipy.stats.wilcoxon (signed-rank). The all-zero-diff degenerate
+   case is caught and returns p=1.0 with a warning.
 
-3. Shared fold indices — identical train/test splits across all methods
-   _ui_fold_indices() and _ud_fold_indices() are called ONCE and the
-   resulting index lists are passed to every method.  This guarantees
-   that DTW, Edit Distance, RF, LSTM and $1 all see exactly the same
-   folds, which is mandatory for valid paired Wilcoxon signed-rank tests.
+3. Bonferroni AND Benjamini-Hochberg FDR corrections are reported.
+   The earlier permutation test and Bayesian sign test are removed
+   (redundant with Wilcoxon + correction).
 
-4. User-dependent kNN — same-user comparison only
-   In the user-dependent setting, when classifying a test gesture from
-   user U, the kNN search is restricted to training gestures that also
-   belong to user U.  This matches the course guideline:
-   "make a comparison with the gestures of the same user from the
-   training set only (user-dependent case)".
+4. LSTM removed. The dataset is too small (~1000 samples) to justify a
+   recurrent network. Earlier results were retained from prior versions
+   and are no longer relevant.
 
-5. User-dependent CV — 10 folds
-   Fold #f holds out repetition #f of EVERY gesture of EVERY user
-   simultaneously (test = 10 users × 10 gestures = 100 samples per
-   fold; train = 900 samples).  This matches "using 90% of the data
-   from the 10 users" and ensures training always covers all users.
+5. Random Forest hyperparameters selected per fold via GridSearchCV
+   (3-fold inner CV). Feature importances analysed post-hoc to
+   identify and prune uninformative features.
 
-6. No spectral (FFT) features
-   FFT coefficients are not comparable across sequences of different
-   lengths (31–314 time steps) without prior resampling.
+6. K-clustering / k-NN K selected via empirical validation curves
+   (accuracy vs K) on the user-independent CV.
 
-7. Sequence length excluded from RF features
-   Reflects recording speed rather than gesture shape.
-
-8. Statistical tests — Benjamini-Hochberg (BH) correction + permutation
-   With C(5,2)=10 pairwise comparisons, BH controls the false discovery
-   rate at 5%. A paired permutation test is run in parallel, which is
-   more powerful than the Wilcoxon test for small n=10.
-
-9. Adaptive preprocessing selection
-   The ablation study returns, for each method, the preprocessing
-   condition that achieved the highest mean accuracy on the
-   user-independent folds. The main evaluation then uses those
-   per-method optimal datasets.
-
-10. LSTM improvements (v2)
-    - Dropout (0.3) on LSTM and Dense layers to reduce overfitting.
-    - Early stopping (patience=10, restore_best_weights=True) instead
-      of a fixed epoch budget.
-    - Multiple seeds (3 runs per fold, results averaged) to reduce
-      variance due to random weight initialisation.
-
-11. RF improvements (v2)
-    - Richer temporal features: per-third-segment statistics (begin /
-      middle / end of gesture), 3D curvature (mean angle between
-      consecutive velocity vectors), per-axis path length.
-    - n_estimators increased to 200 for lower generalisation variance.
-
-12. $1 Recognizer — 3D adaptation (Wobbrock, Wilson & Li, 2007)
-    The original $1 algorithm operates in 2D. We adapt it faithfully
-    to 3D following the same four steps from the pseudocode:
-      Step 1 — Resample to N=64 equidistant 3D points.
-      Step 2 — Rotate to the indicative orientation (angle from
-                centroid to first point in the XY plane set to 0°,
-                then the same rotation applied to all 3 axes).
-      Step 3 — Scale to a unit cube and translate centroid to origin.
-      Step 4 — Match via Golden Section Search over ±45° in the XY
-                plane; path distance averaged over N points.
-    Classification uses 1-NN over all training templates, exactly as
-    in the original paper.
+References
+----------
+Wobbrock, J.O., Wilson, A.D., & Li, Y. (2007). Gestures without
+  libraries, toolkits or training: A $1 recognizer for user interface
+  prototypes. UIST'07, 159-168.
+Kratz, S., & Rohs, M. (2010). A $3 gesture recognizer: simple gesture
+  recognition for devices equipped with 3D acceleration sensors.
+  IUI'10, 341-344.
+Kratz, S., & Rohs, M. (2011). Protractor3D: A closed-form solution to
+  rotation-invariant 3D gestures. IUI'11, 371-374.
+Mezari, A., & Maglogiannis, I. (2018). An easily customized gesture
+  recognizer for assisted living using commodity mobile devices.
+  Journal of Healthcare Engineering, 2018:3180652.
 
 Authors : Andry Lenny / El Mohcine Mohamed / Ottevaere Arthur
 Group   : Group 6
@@ -132,6 +93,7 @@ Date    : 2026
 
 import os
 import re
+import warnings
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -141,16 +103,11 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
 from joblib import Parallel, delayed
 from numba import njit
 from scipy.stats import wilcoxon
 from statsmodels.stats.multitest import multipletests
-import tensorflow as tf
-# only keras, no tensorflow.keras, to avoid version issues in the environment
-from keras.models import Sequential
-from keras.layers import LSTM, Dense, Masking, Input, Dropout
-from keras.callbacks import EarlyStopping
-from keras.preprocessing.sequence import pad_sequences
 
 
 # ==============================================================================
@@ -172,28 +129,31 @@ DOMAIN4_CLASS_NAMES = {
 }
 
 # ---------------------------------------------------------------------------
-# Hyperparameters — justified against the literature and dataset properties
+# Hyperparameters
 # ---------------------------------------------------------------------------
 
 K_CLUSTERS       = 20
 PCA_N_KEEP       = 2
-RF_N_TREES       = 200          # increased from 100 (lower variance)
+RF_N_TREES       = 200
 RF_MAX_FEATURES  = "sqrt"
-LSTM_UNITS       = 64
-LSTM_DENSE_UNITS = 32
-LSTM_DROPOUT     = 0.3          # NEW: dropout rate for regularisation
-LSTM_MAX_EPOCHS  = 100          # NEW: upper bound; early stopping governs
-LSTM_ES_PATIENCE = 10           # NEW: early stopping patience
-LSTM_BATCH_SIZE  = 32
-LSTM_N_SEEDS     = 3            # NEW: number of random seeds per fold
 KNN_K            = 1
 
-# $1 Recognizer hyperparameters (Wobbrock et al., 2007)
+# RF GridSearchCV grid (kept compact to limit cost)
+RF_GRID = {
+    "n_estimators"     : [100, 200],
+    "max_depth"        : [None, 20],
+    "min_samples_split": [2, 5],
+}
+RF_GRID_INNER_CV = 3
+
+# Validation-curve scan ranges (Section 5 of instructions)
+VC_K_CLUSTERS = [5, 10, 15, 20, 25, 30, 40]
+VC_KNN_K      = [1, 3, 5, 7, 9]
+
+# $1 Recognizer hyperparameters (Kratz & Rohs, 2010)
 DOLLAR_N         = 64           # number of resampled points
-DOLLAR_SIZE      = 250.0        # side of the reference square
-DOLLAR_THETA_MAX = np.radians(45.0)   # ±45° search range
-DOLLAR_THETA_DELTA = np.radians(2.0)  # 2° angular resolution
-PHI              = 0.5 * (-1.0 + np.sqrt(5.0))  # golden ratio ≈ 0.618
+DOLLAR_L         = 1.0          # side of the normalised cube
+DOLLAR_SCORE_DENOM = 0.5 * np.sqrt(3.0) * DOLLAR_L   # diagonal/2 of the cube
 
 
 # ==============================================================================
@@ -203,17 +163,11 @@ PHI              = 0.5 * (-1.0 + np.sqrt(5.0))  # golden ratio ≈ 0.618
 def load_domain1(folder_path: str) -> tuple[list, list, list]:
     """
     Load all Domain 1 CSV files.
-
-    File naming: SubjectS-G-R.csv
-        S = subject index (1-based in filename, stored 0-based)
-        G = gesture class (0-9, digit drawn)
-        R = repetition index (1-10)
-
     Returns
     -------
-    data   : list of np.ndarray (T, 3) — x, y, z coordinates
-    labels : list of int — gesture class (0-9)
-    users  : list of int — subject index (0-9)
+    data   : list of np.ndarray (T, 3)
+    labels : list of int (0-9)
+    users  : list of int (0-9)
     """
     data, labels, users = [], [], []
     pattern = re.compile(r"Subject(\d+)-(\d+)-(\d+)\.csv", re.IGNORECASE)
@@ -236,9 +190,7 @@ def load_domain1(folder_path: str) -> tuple[list, list, list]:
 
 
 def load_domain4(folder_path: str) -> tuple[list, list, list]:
-    """
-    Load all Domain 4 plain-text files (no extension).
-    """
+    """Load all Domain 4 plain-text files (no extension)."""
     data, labels, users = [], [], []
 
     for filename in sorted(os.listdir(folder_path)):
@@ -297,11 +249,11 @@ def check_completeness(labels: list, users: list,
         counts[(u, g)] += 1
     issues = [(u, g, n) for (u, g), n in counts.items() if n != 10]
     if issues:
-        print(f"  [WARNING] {domain_name} — incomplete groups:")
+        print(f"  [WARNING] {domain_name} - incomplete groups:")
         for u, g, n in sorted(issues):
-            print(f"    user={u}, gesture={g} → {n} rep(s) (expected 10)")
+            print(f"    user={u}, gesture={g} -> {n} rep(s) (expected 10)")
     else:
-        print(f"  {domain_name}: {len(labels)} sequences — completeness OK "
+        print(f"  {domain_name}: {len(labels)} sequences - completeness OK "
               f"({len(set(users))} users x "
               f"{len(set(labels))} gestures x 10 reps)")
 
@@ -309,9 +261,9 @@ def check_completeness(labels: list, users: list,
 def print_dataset_info(data: list, labels: list,
                         users: list, domain_name: str) -> int:
     lengths = [len(seq) for seq in data]
-    print(f"\n{'─'*55}")
+    print(f"\n{'-'*55}")
     print(f"  {domain_name}")
-    print(f"{'─'*55}")
+    print(f"{'-'*55}")
     print(f"  Total sequences : {len(data)}")
     print(f"  Subjects        : {sorted(set(users))}")
     print(f"  Gesture classes : {sorted(set(labels))}")
@@ -339,7 +291,7 @@ def plot_sequence_lengths(data: list, labels: list,
                patch_artist=True)
     ax.set_xlabel("Gesture class")
     ax.set_ylabel("Number of time steps")
-    ax.set_title(f"{domain_name} — Sequence lengths per gesture class")
+    ax.set_title(f"{domain_name} - Sequence lengths per gesture class")
     ax.grid(axis="y", linestyle="--", alpha=0.5)
     plt.tight_layout()
     if save_path:
@@ -373,7 +325,7 @@ def plot_gesture_samples(data: list, labels: list, users: list,
             ax.tick_params(labelsize=5)
             plot_idx += 1
     plt.suptitle(
-        f"{domain_name} — 3D trajectories (green=start, red=end)",
+        f"{domain_name} - 3D trajectories (green=start, red=end)",
         fontsize=10, y=1.01)
     plt.tight_layout()
     if save_path:
@@ -422,15 +374,14 @@ def summarise_pca_denoising(data_std: list, domain_name: str,
     evrs = np.array([pca_denoise_gesture(seq, n_keep)[1]
                      for seq in data_std])
 
-    print(f"\n  Per-gesture PCA denoising — {domain_name}")
+    print(f"\n  Per-gesture PCA denoising - {domain_name}")
     for c in range(evrs.shape[1]):
         print(f"    PC{c+1}: mean EVR = {evrs[:, c].mean():.3f} "
               f"+/- {evrs[:, c].std():.3f}")
     kept_var    = evrs[:, :n_keep].sum(axis=1).mean() * 100
     removed_var = evrs[:, n_keep:].sum(axis=1).mean() * 100
     print(f"    Variance kept   (PC1+PC2): {kept_var:.1f}%")
-    print(f"    Variance removed (PC3+): {removed_var:.1f}%  "
-          f"(interpreted as sensor noise)")
+    print(f"    Variance removed (PC3+): {removed_var:.1f}%")
 
     fig, ax = plt.subplots(figsize=(7, 3))
     for c in range(evrs.shape[1]):
@@ -438,7 +389,7 @@ def summarise_pca_denoising(data_std: list, domain_name: str,
     ax.axvline(0.0, color="k", linewidth=0.5)
     ax.set_xlabel("Explained variance ratio")
     ax.set_ylabel("Count")
-    ax.set_title(f"{domain_name} — Per-gesture PCA EVR distribution "
+    ax.set_title(f"{domain_name} - Per-gesture PCA EVR distribution "
                  f"(n_keep={n_keep})")
     ax.legend()
     plt.tight_layout()
@@ -513,27 +464,49 @@ def edit_distance(seq1: np.ndarray, seq2: np.ndarray) -> int:
 
 
 # ==============================================================================
-# 4b.  $1 RECOGNIZER — 3D ADAPTATION  (Wobbrock, Wilson & Li, 2007)
+# 4b.  $1 RECOGNIZER -- 3D ADAPTATION FOLLOWING KRATZ & ROHS (2010)
 # ==============================================================================
-# The original $1 algorithm is a 2-D unistroke recognizer. We adapt it to
-# 3D by applying the resample, scale, and translate steps in 3D, and
-# performing the indicative-angle rotation only in the XY plane (the dominant
-# plane for both domains), following the spirit of the original algorithm.
-# The Golden Section Search over ±45° in XY is preserved exactly as in the
-# pseudocode published by the authors.
+# The 2D $1 Recognizer of Wobbrock, Wilson & Li (2007) is extended to 3D
+# according to the canonical procedure of Kratz & Rohs (2010), "A $3
+# Gesture Recognizer", Proc. IUI '10, pp. 341-344.
+#
+# Pipeline
+# --------
+#   1. Resample to N=64 equidistant 3D points (linear interpolation along
+#      cumulative arc length).
+#   2. Translate centroid to the origin.
+#   3. Rotate so that the first resampled point lies along the centroid
+#      direction.  The rotation axis is the unit vector pâ x c (cross
+#      product); the angle is acos((pâ . c) / (||pâ|| ||c||)).  Rotation
+#      applied with Rodrigues' formula.  Degenerate case (pâ collinear
+#      with c) -> identity rotation.
+#   4. Uniformly rescale so that the longest bounding-box edge equals
+#      DOLLAR_L (=1.0). This is the "normalised cube of side l" of
+#      Kratz & Rohs (2010).  No axis-by-axis scaling: this avoids the
+#      division-by-zero issue on quasi-planar gestures.
+#
+# Score
+# -----
+#   S = 1 - d / (0.5 * sqrt(3) * l)
+# where d is the mean Euclidean point-to-point distance between the
+# preprocessed candidate and the preprocessed template (Kratz & Rohs,
+# 2010, eq. 3D score).  The factor sqrt(3) replaces sqrt(2) of the 2D
+# original (cube diagonal vs square diagonal).
+#
+# Templates are preprocessed only once and cached, as required by
+# Wobbrock et al. (2007, "For gestures serving as templates, Steps 1-3
+# should be carried out once on the raw input points.").
+#
+# Note: the Golden Section Search refinement of Kratz & Rohs (2010) is
+# NOT implemented (computational cost vs marginal accuracy gain).
 # ==============================================================================
 
 def _dollar_path_length(points: np.ndarray) -> float:
-    """Sum of Euclidean distances between consecutive 3D points."""
     return float(np.sum(np.linalg.norm(np.diff(points, axis=0), axis=1)))
 
 
 def dollar_resample(points: np.ndarray, n: int = DOLLAR_N) -> np.ndarray:
-    """
-    Step 1 of $1 (Wobbrock et al., 2007) — adapted to 3D.
-    Resample a 3D point path into n evenly spaced points by linear
-    interpolation along cumulative arc-length.
-    """
+    """Step 1 of Kratz & Rohs (2010): resample to n equidistant 3D points."""
     total = _dollar_path_length(points)
     if total == 0.0 or len(points) < 2:
         return np.tile(points[0], (n, 1))
@@ -541,24 +514,23 @@ def dollar_resample(points: np.ndarray, n: int = DOLLAR_N) -> np.ndarray:
     interval   = total / (n - 1)
     D          = 0.0
     new_points = [points[0].copy()]
+    pts        = points.copy()
 
     i = 1
-    while i < len(points) and len(new_points) < n:
-        d = float(np.linalg.norm(points[i] - points[i - 1]))
+    while i < len(pts) and len(new_points) < n:
+        d = float(np.linalg.norm(pts[i] - pts[i - 1]))
         if D + d >= interval:
             frac = (interval - D) / d
-            q    = points[i - 1] + frac * (points[i] - points[i - 1])
+            q    = pts[i - 1] + frac * (pts[i] - pts[i - 1])
             new_points.append(q)
-            # Insert q back so it can be the starting point of the next step
-            points = np.insert(points, i, q, axis=0)
+            pts = np.insert(pts, i, q, axis=0)
             D = 0.0
         else:
             D += d
         i += 1
 
-    # Floating-point rounding may leave us one point short
     while len(new_points) < n:
-        new_points.append(points[-1].copy())
+        new_points.append(pts[-1].copy())
 
     return np.array(new_points[:n], dtype=float)
 
@@ -567,160 +539,130 @@ def _dollar_centroid(points: np.ndarray) -> np.ndarray:
     return points.mean(axis=0)
 
 
-def _dollar_indicative_angle(points: np.ndarray) -> float:
-    """
-    Step 2 of $1 — indicative angle in the XY plane from centroid to
-    the first resampled point.  Returns angle in radians.
-    """
-    c = _dollar_centroid(points)
-    return float(np.arctan2(c[1] - points[0, 1], c[0] - points[0, 0]))
-
-
-def _dollar_rotate_by(points: np.ndarray, omega: float) -> np.ndarray:
-    """
-    Rotate all 3D points around the centroid by angle omega in the XY plane.
-    The Z coordinate is left unchanged, consistent with the 2D origin of the
-    algorithm and the dominant-plane approach used here.
-    """
-    c   = _dollar_centroid(points)
-    cos_w, sin_w = np.cos(omega), np.sin(omega)
-    rotated      = points.copy()
-    dx = points[:, 0] - c[0]
-    dy = points[:, 1] - c[1]
-    rotated[:, 0] = cos_w * dx - sin_w * dy + c[0]
-    rotated[:, 1] = sin_w * dx + cos_w * dy + c[1]
-    # Z unchanged
-    return rotated
-
-
-def _dollar_scale_to(points: np.ndarray,
-                      size: float = DOLLAR_SIZE) -> np.ndarray:
-    """
-    Step 3a of $1 — non-uniform scale so the bounding box fits in
-    size × size × size.  If a dimension has zero extent, no scaling
-    is applied on that axis (avoids division by zero).
-    """
-    mins  = points.min(axis=0)
-    maxs  = points.max(axis=0)
-    spans = maxs - mins
-    spans[spans == 0.0] = 1.0   # guard against degenerate axes
-    scaled = (points - mins) / spans * size
-    return scaled
-
-
 def _dollar_translate_to_origin(points: np.ndarray) -> np.ndarray:
+    return points - _dollar_centroid(points)
+
+
+def _rodrigues_rotate(points: np.ndarray,
+                       axis: np.ndarray,
+                       angle: float) -> np.ndarray:
     """
-    Step 3b of $1 — translate centroid to the coordinate-system origin.
+    Rotate a (T, 3) array of points around a unit axis by `angle` radians,
+    using Rodrigues' rotation formula (Kratz & Rohs, 2010).
+        v_rot = v cos(t) + (k x v) sin(t) + k (k . v)(1 - cos(t))
     """
-    c = _dollar_centroid(points)
-    return points - c
+    c, s = np.cos(angle), np.sin(angle)
+    one_minus_c = 1.0 - c
+    kx, ky, kz = axis
+    K = np.array([[ 0.0, -kz,  ky],
+                  [  kz, 0.0, -kx],
+                  [ -ky,  kx, 0.0]])
+    R = np.eye(3) * c + K * s + np.outer(axis, axis) * one_minus_c
+    return points @ R.T
 
 
-def _dollar_path_distance(a: np.ndarray, b: np.ndarray) -> float:
+def _dollar_align_to_indicative_axis(points: np.ndarray) -> np.ndarray:
     """
-    Average per-point Euclidean distance between two same-length 3D paths.
-    Corresponds to PATH-DISTANCE in the $1 pseudocode.
+    Step 3 of Kratz & Rohs (2010): rotate so that the first point pâ aligns
+    with the centroid direction. Translation to origin must be applied
+    first.
+    The rotation axis is pâ x c (unit vector); the angle is the arccos of
+    the normalised dot product. Degenerate cases (pâ or c with zero norm,
+    or pâ collinear with c) -> identity rotation.
     """
-    return float(np.mean(np.linalg.norm(a - b, axis=1)))
+    if len(points) == 0:
+        return points
+    p1 = points[0]
+    c  = _dollar_centroid(points)
+
+    n_p1 = float(np.linalg.norm(p1))
+    n_c  = float(np.linalg.norm(c))
+    if n_p1 < 1e-12 or n_c < 1e-12:
+        return points
+
+    cos_theta = float(np.dot(p1, c) / (n_p1 * n_c))
+    cos_theta = max(-1.0, min(1.0, cos_theta))
+    theta     = float(np.arccos(cos_theta))
+
+    cross   = np.cross(p1, c)
+    n_cross = float(np.linalg.norm(cross))
+    if n_cross < 1e-12 or theta < 1e-9:
+        # Degenerate: pâ already collinear with c -> identity.
+        return points
+    axis = cross / n_cross
+    return _rodrigues_rotate(points, axis, theta)
 
 
-def _dollar_distance_at_angle(points: np.ndarray,
-                               template: np.ndarray,
-                               theta: float) -> float:
-    """DISTANCE-AT-ANGLE from the $1 pseudocode."""
-    rotated = _dollar_rotate_by(points, theta)
-    return _dollar_path_distance(rotated, template)
-
-
-def _dollar_distance_at_best_angle(points: np.ndarray,
-                                    template: np.ndarray,
-                                    theta_a: float,
-                                    theta_b: float,
-                                    theta_delta: float) -> float:
+def _dollar_scale_cube(points: np.ndarray,
+                        l: float = DOLLAR_L) -> np.ndarray:
     """
-    Golden Section Search over [theta_a, theta_b] for the rotation that
-    minimises path distance.  Directly implements DISTANCE-AT-BEST-ANGLE
-    from the $1 pseudocode (Wobbrock et al., 2007).
-    phi = 0.5 * (-1 + sqrt(5))  ≈ 0.618
+    Step 4 (Kratz & Rohs, 2010): uniform rescaling INSIDE a normalised
+    cube of side l.  The longest bounding-box edge becomes l. Avoids the
+    division-by-zero issue of axis-by-axis scaling on quasi-planar
+    gestures.
     """
-    x1 = PHI * theta_a + (1.0 - PHI) * theta_b
-    f1 = _dollar_distance_at_angle(points, template, x1)
-    x2 = (1.0 - PHI) * theta_a + PHI * theta_b
-    f2 = _dollar_distance_at_angle(points, template, x2)
-
-    while abs(theta_b - theta_a) > theta_delta:
-        if f1 < f2:
-            theta_b = x2
-            x2, f2  = x1, f1
-            x1 = PHI * theta_a + (1.0 - PHI) * theta_b
-            f1 = _dollar_distance_at_angle(points, template, x1)
-        else:
-            theta_a = x1
-            x1, f1  = x2, f2
-            x2 = (1.0 - PHI) * theta_a + PHI * theta_b
-            f2 = _dollar_distance_at_angle(points, template, x2)
-
-    return min(f1, f2)
+    extents = points.max(axis=0) - points.min(axis=0)
+    max_ext = float(extents.max())
+    if max_ext < 1e-12:
+        return points
+    return points * (l / max_ext)
 
 
 def dollar_preprocess(points: np.ndarray,
-                       n:    int   = DOLLAR_N,
-                       size: float = DOLLAR_SIZE) -> np.ndarray:
+                       n: int   = DOLLAR_N,
+                       l: float = DOLLAR_L) -> np.ndarray:
     """
-    Apply Steps 1–3 of the $1 algorithm to a single 3D gesture.
-    Used once on templates during training and once on candidates at
-    test time (as specified in the original paper).
+    Apply Steps 1-4 of the $3 (Kratz & Rohs, 2010) preprocessing.
+    Used once on training templates (cached) and once on each candidate.
     """
     pts = dollar_resample(points, n)
-    omega = _dollar_indicative_angle(pts)
-    pts   = _dollar_rotate_by(pts, -omega)          # rotate to 0°
-    pts   = _dollar_scale_to(pts, size)              # scale to square
-    pts   = _dollar_translate_to_origin(pts)         # translate to origin
+    pts = _dollar_translate_to_origin(pts)
+    pts = _dollar_align_to_indicative_axis(pts)
+    pts = _dollar_scale_cube(pts, l)
+    pts = _dollar_translate_to_origin(pts)
     return pts
 
 
-def dollar_recognize(candidate: np.ndarray,
-                      templates: list,
-                      n:    int   = DOLLAR_N,
-                      size: float = DOLLAR_SIZE) -> float:
-    """
-    Step 4 of the $1 algorithm — find the nearest template.
-    Returns the minimum path distance over all templates (used as the
-    distance function for 1-NN classification).
-
-    Parameters
-    ----------
-    candidate  : preprocessed candidate gesture (N, 3)
-    templates  : list of preprocessed template gestures [(N, 3), ...]
-    """
-    best = np.inf
-    for tmpl in templates:
-        d = _dollar_distance_at_best_angle(
-            candidate, tmpl,
-            -DOLLAR_THETA_MAX, DOLLAR_THETA_MAX, DOLLAR_THETA_DELTA
-        )
-        if d < best:
-            best = d
-    return best
+def _dollar_path_distance(a: np.ndarray, b: np.ndarray) -> float:
+    """Mean Euclidean distance between two same-length 3D paths."""
+    return float(np.mean(np.linalg.norm(a - b, axis=1)))
 
 
-def dollar_distance(seq1: np.ndarray, seq2: np.ndarray) -> float:
+def dollar_score(distance: float, l: float = DOLLAR_L) -> float:
     """
-    Distance function compatible with knn_predict.
-    Both sequences are preprocessed on-the-fly (Steps 1–3), then
-    Step 4 (GSS) is applied to find the best angular alignment.
-    This matches the recognition procedure described in the paper.
+    Confidence score in [0, 1] (Kratz & Rohs, 2010, 3D adaptation):
+        S = 1 - d / (0.5 * sqrt(3) * l)
+    Clipped to [0, 1] in case of numerical edge effects.
     """
-    p1 = dollar_preprocess(seq1)
-    p2 = dollar_preprocess(seq2)
-    return _dollar_distance_at_best_angle(
-        p1, p2,
-        -DOLLAR_THETA_MAX, DOLLAR_THETA_MAX, DOLLAR_THETA_DELTA
-    )
+    s = 1.0 - distance / (0.5 * np.sqrt(3.0) * l)
+    return float(max(0.0, min(1.0, s)))
+
+
+def dollar_recognize(candidate_pre: np.ndarray,
+                      templates_pre: list,
+                      template_labels: list,
+                      l: float = DOLLAR_L
+                      ) -> tuple[int, float, list]:
+    """
+    Step 5 of Kratz & Rohs (2010) recognition: rank all (preprocessed)
+    templates against the (preprocessed) candidate by mean point-to-point
+    distance, and return:
+        (best_label, best_score, ranked_list)
+    where ranked_list is a sorted N-best list:
+        [(label, distance, score), ...]   sorted by distance ascending.
+    """
+    distances = [
+        _dollar_path_distance(candidate_pre, t) for t in templates_pre
+    ]
+    order   = np.argsort(distances)
+    ranked  = [(template_labels[k], float(distances[k]),
+                dollar_score(distances[k], l)) for k in order]
+    best_label, best_d, best_s = ranked[0]
+    return int(best_label), float(best_s), ranked
 
 
 # ==============================================================================
-# 5.  k-NN CLASSIFIER
+# 5.  k-NN CLASSIFIER  (generic, distance-based)
 # ==============================================================================
 
 def knn_predict(test_item, train_items: list, train_labels: list,
@@ -732,60 +674,49 @@ def knn_predict(test_item, train_items: list, train_labels: list,
     return max(set(k_labels), key=k_labels.count)
 
 
+def knn_predict_from_distances(distances: np.ndarray,
+                                train_labels: list,
+                                k: int = KNN_K) -> int:
+    """
+    kNN over a precomputed distance vector. Used by the cached $1
+    pipeline (templates preprocessed only once, then plain L2 distance
+    on aligned 3D paths).
+    """
+    k_nearest = np.argsort(distances)[:k]
+    k_labels  = [train_labels[idx] for idx in k_nearest]
+    return max(set(k_labels), key=k_labels.count)
+
+
 # ==============================================================================
-# 6.  FEATURE EXTRACTION  (RF input) — v2 with richer temporal features
+# 6.  FEATURE EXTRACTION  (RF input)
 # ==============================================================================
 
 def extract_features(sequence: np.ndarray,
                       evr: np.ndarray | None = None) -> np.ndarray:
     """
-    Extract a fixed-length feature vector from a 3D gesture sequence.
-
-    Features (v2 — 50 features without EVR, 53 with EVR):
-    ─────────────────────────────────────────────────────
-    Per-axis global statistics (7 × 3 = 21)
-        mean, std, min, max, range, skewness, kurtosis for x, y, z.
-
-    Kinematics (6)
-        mean/std/max/min speed, mean/std acceleration magnitude.
-
-    Trajectory length (1)
-        total arc-length (sum of per-step norms).
-
-    Bounding box (4)
-        extent on x, y, z and diagonal of the enclosing box.
-
-    3D curvature (3)  — NEW
-        mean / std / total of the angle between consecutive velocity
-        vectors.  Captures turning behaviour along the gesture.
-
-    Per-segment statistics — begin / middle / end thirds (6)  — NEW
-        mean speed in each temporal third (3 values) and
-        mean 3D displacement magnitude in each third (3 values).
-        These capture the temporal dynamics that global statistics miss.
-
-    Per-axis path length (3)  — NEW
-        sum of absolute increments on each axis independently.
-
-    PCA EVR (3, optional)
-        Only appended when condition (c) is active.
+    Fixed-length feature vector for the RF classifier.
+    Composition (53 with EVR, 50 without):
+      - global per-axis stats (21)
+      - kinematics (6)
+      - total arc-length (1)
+      - bounding box + diagonal (4)
+      - 3D curvature mean/std/total (3)
+      - per-segment speed and displacement, begin/middle/end (6)
+      - per-axis path length (3)
+      - PCA EVR (3, optional)
     """
     features = []
 
-    # -- Global per-axis statistics --
     for i in range(3):
         axis = sequence[:, i]
         features.extend([
-            float(np.mean(axis)),
-            float(np.std(axis)),
-            float(np.min(axis)),
-            float(np.max(axis)),
+            float(np.mean(axis)), float(np.std(axis)),
+            float(np.min(axis)),  float(np.max(axis)),
             float(np.max(axis) - np.min(axis)),
             float(pd.Series(axis).skew()),
             float(pd.Series(axis).kurt()),
         ])
 
-    # -- Kinematics --
     velocity = np.diff(sequence, axis=0)
     speed    = np.linalg.norm(velocity, axis=1)
     features.extend([float(np.mean(speed)), float(np.std(speed)),
@@ -799,30 +730,24 @@ def extract_features(sequence: np.ndarray,
     else:
         features.extend([0.0, 0.0])
 
-    # -- Total arc-length --
     features.append(float(np.sum(speed)))
 
-    # -- Bounding box --
     bbox = np.max(sequence, axis=0) - np.min(sequence, axis=0)
     features.extend(bbox.tolist())
     features.append(float(np.linalg.norm(bbox)))
 
-    # -- 3D curvature (NEW) --
-    # Angle between consecutive normalised velocity vectors.
-    # A straight gesture → all angles ≈ 0; a curly one → large angles.
     if len(velocity) > 1:
         v_norm = velocity / (
             np.linalg.norm(velocity, axis=1, keepdims=True) + 1e-8)
         cos_angles = np.clip(
             np.sum(v_norm[:-1] * v_norm[1:], axis=1), -1.0, 1.0)
-        angles = np.arccos(cos_angles)          # in [0, π]
+        angles = np.arccos(cos_angles)
         features.extend([float(np.mean(angles)),
                          float(np.std(angles)),
-                         float(np.sum(angles))])   # total curvature
+                         float(np.sum(angles))])
     else:
         features.extend([0.0, 0.0, 0.0])
 
-    # -- Per-segment statistics (begin / middle / end thirds) (NEW) --
     T      = len(sequence)
     thirds = [slice(0, T // 3),
               slice(T // 3, 2 * T // 3),
@@ -830,7 +755,7 @@ def extract_features(sequence: np.ndarray,
     for sl in thirds:
         seg = sequence[sl]
         if len(seg) < 2:
-            features.append(0.0)  # mean speed of this segment
+            features.append(0.0)
         else:
             seg_vel   = np.diff(seg, axis=0)
             seg_speed = np.linalg.norm(seg_vel, axis=1)
@@ -841,20 +766,34 @@ def extract_features(sequence: np.ndarray,
         if len(seg) < 2:
             features.append(0.0)
         else:
-            seg_disp = np.linalg.norm(
-                np.diff(seg, axis=0), axis=1)
+            seg_disp = np.linalg.norm(np.diff(seg, axis=0), axis=1)
             features.append(float(np.mean(seg_disp)))
 
-    # -- Per-axis path length (NEW) --
     for i in range(3):
         features.append(
             float(np.sum(np.abs(np.diff(sequence[:, i])))))
 
-    # -- PCA EVR (optional) --
     if evr is not None:
         features.extend(evr.tolist())
 
     return np.array(features, dtype=float)
+
+
+def feature_names(with_evr: bool) -> list:
+    names = []
+    for ax in ["x", "y", "z"]:
+        for stat in ["mean", "std", "min", "max", "range", "skew", "kurt"]:
+            names.append(f"{ax}_{stat}")
+    names += ["speed_mean", "speed_std", "speed_max", "speed_min",
+              "accel_mean", "accel_std", "arc_length",
+              "bbox_x", "bbox_y", "bbox_z", "bbox_diag",
+              "curv_mean", "curv_std", "curv_total",
+              "speed_seg1", "speed_seg2", "speed_seg3",
+              "disp_seg1", "disp_seg2", "disp_seg3",
+              "path_x", "path_y", "path_z"]
+    if with_evr:
+        names += ["evr_pc1", "evr_pc2", "evr_pc3"]
+    return names
 
 
 def build_feature_dataset(data: list,
@@ -908,14 +847,44 @@ def _ud_fold_indices(labels: list,
 
 
 # ==============================================================================
-# 8.  EVALUATION FUNCTIONS
+# 7b.  PER-(GESTURE, USER) ACCURACY HELPER  -- for Wilcoxon n=100
 # ==============================================================================
 
-# ── DTW ───────────────────────────────────────────────────────────────────────
+def _aggregate_gu_accuracy(per_sample_correct: dict,
+                            labels: list, users: list) -> np.ndarray:
+    """
+    Build the n=100 vector of per-(gesture, user) accuracies, ordered by
+    (gesture asc, user asc), to align across methods.
+
+    per_sample_correct: dict {sample_idx: 0/1}
+    """
+    gesture_classes = sorted(set(labels))
+    unique_users    = sorted(set(users))
+    bucket: dict = {(g, u): [] for g in gesture_classes
+                                for u in unique_users}
+    for idx, c in per_sample_correct.items():
+        bucket[(labels[idx], users[idx])].append(int(c))
+    out = []
+    for g in gesture_classes:
+        for u in unique_users:
+            vals = bucket[(g, u)]
+            out.append(float(np.mean(vals)) if vals else float("nan"))
+    return np.array(out, dtype=float)
+
+
+# ==============================================================================
+# 8.  EVALUATION FUNCTIONS
+#     Each returns:
+#         mean_acc, std_acc, fold_accs (length=n_folds),
+#         gu_acc (length=100, per (gesture, user) pair)
+# ==============================================================================
+
+# -- DTW ----------------------------------------------------------------------
 
 def crossval_ui_dtw(data_pca: list, labels: list, users: list,
-                     folds: list) -> tuple[float, float, list]:
+                     folds: list) -> tuple[float, float, list, np.ndarray]:
     fold_accs = []
+    correct: dict = {}
     for fold_num, (tr, te) in enumerate(folds):
         tr_items  = [data_pca[i] for i in tr]
         tr_labels = [labels[i]   for i in tr]
@@ -928,14 +897,18 @@ def crossval_ui_dtw(data_pca: list, labels: list, users: list,
         )
         acc = float(np.mean([p == t for p, t in zip(preds, te_labels)]))
         fold_accs.append(acc)
+        for idx, p in zip(te, preds):
+            correct[idx] = int(p == labels[idx])
         u = sorted(set(users))[fold_num]
-        print(f"    DTW  (UI) — User {u} held out → acc = {acc:.3f}")
-    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs
+        print(f"    DTW  (UI) - User {u} held out -> acc = {acc:.3f}")
+    gu = _aggregate_gu_accuracy(correct, labels, users)
+    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs, gu
 
 
 def crossval_ud_dtw(data_pca: list, labels: list, users: list,
-                     folds: list) -> tuple[float, float, list]:
+                     folds: list) -> tuple[float, float, list, np.ndarray]:
     fold_accs = []
+    correct: dict = {}
     for fold_num, (tr, te, te_users) in enumerate(folds):
         tr_users_arr = [users[i] for i in tr]
         te_items  = [data_pca[i] for i in te]
@@ -952,22 +925,28 @@ def crossval_ud_dtw(data_pca: list, labels: list, users: list,
             )
         acc = float(np.mean([p == t for p, t in zip(preds, te_labels)]))
         fold_accs.append(acc)
-        print(f"    DTW  (UD) — Fold {fold_num} → acc = {acc:.3f}")
-    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs
+        for idx, p in zip(te, preds):
+            correct[idx] = int(p == labels[idx])
+        print(f"    DTW  (UD) - Fold {fold_num} -> acc = {acc:.3f}")
+    gu = _aggregate_gu_accuracy(correct, labels, users)
+    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs, gu
 
 
-# ── Edit Distance ─────────────────────────────────────────────────────────────
+# -- Edit Distance ------------------------------------------------------------
 
 def crossval_ui_edit(data_pca: list, labels: list, users: list,
-                      folds: list) -> tuple[float, float, list]:
+                      folds: list,
+                      k_clusters: int = K_CLUSTERS
+                      ) -> tuple[float, float, list, np.ndarray]:
     fold_accs = []
+    correct: dict = {}
     for fold_num, (tr, te) in enumerate(folds):
         tr_data   = [data_pca[i] for i in tr]
         te_data   = [data_pca[i] for i in te]
         tr_labels = [labels[i]   for i in tr]
         te_labels = [labels[i]   for i in te]
         tr_seq, te_seq = fit_kmeans_and_encode(tr_data, te_data,
-                                               k=K_CLUSTERS)
+                                               k=k_clusters)
         preds = Parallel(n_jobs=-1, prefer="threads")(
             delayed(knn_predict)(ts, tr_seq, tr_labels,
                                  edit_distance, KNN_K)
@@ -975,14 +954,20 @@ def crossval_ui_edit(data_pca: list, labels: list, users: list,
         )
         acc = float(np.mean([p == t for p, t in zip(preds, te_labels)]))
         fold_accs.append(acc)
+        for idx, p in zip(te, preds):
+            correct[idx] = int(p == labels[idx])
         u = sorted(set(users))[fold_num]
-        print(f"    Edit (UI) — User {u} held out → acc = {acc:.3f}")
-    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs
+        print(f"    Edit (UI) - User {u} held out -> acc = {acc:.3f}")
+    gu = _aggregate_gu_accuracy(correct, labels, users)
+    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs, gu
 
 
 def crossval_ud_edit(data_pca: list, labels: list, users: list,
-                      folds: list) -> tuple[float, float, list]:
+                      folds: list,
+                      k_clusters: int = K_CLUSTERS
+                      ) -> tuple[float, float, list, np.ndarray]:
     fold_accs = []
+    correct: dict = {}
     for fold_num, (tr, te, te_users) in enumerate(folds):
         tr_data   = [data_pca[i] for i in tr]
         te_data   = [data_pca[i] for i in te]
@@ -990,7 +975,7 @@ def crossval_ud_edit(data_pca: list, labels: list, users: list,
         te_labels = [labels[i]   for i in te]
         tr_users_arr = [users[i] for i in tr]
         tr_seq, te_seq = fit_kmeans_and_encode(tr_data, te_data,
-                                               k=K_CLUSTERS)
+                                               k=k_clusters)
         preds = []
         for ts_seq_item, ts_user in zip(te_seq, te_users):
             same_user_mask = [j for j, u in enumerate(tr_users_arr)
@@ -1003,256 +988,326 @@ def crossval_ud_edit(data_pca: list, labels: list, users: list,
             )
         acc = float(np.mean([p == t for p, t in zip(preds, te_labels)]))
         fold_accs.append(acc)
-        print(f"    Edit (UD) — Fold {fold_num} → acc = {acc:.3f}")
-    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs
+        for idx, p in zip(te, preds):
+            correct[idx] = int(p == labels[idx])
+        print(f"    Edit (UD) - Fold {fold_num} -> acc = {acc:.3f}")
+    gu = _aggregate_gu_accuracy(correct, labels, users)
+    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs, gu
 
 
-# ── Random Forest ─────────────────────────────────────────────────────────────
+# -- Random Forest with GridSearchCV ------------------------------------------
+
+def _rf_fit_with_grid(X_tr: np.ndarray, y_tr: np.ndarray,
+                       grid: dict = RF_GRID,
+                       inner_cv: int = RF_GRID_INNER_CV,
+                       random_state: int = 42
+                       ) -> RandomForestClassifier:
+    """
+    Fit an RF with hyperparameters tuned via GridSearchCV (inner CV on
+    the training fold only -- no test-set leakage).
+    """
+    base = RandomForestClassifier(max_features=RF_MAX_FEATURES,
+                                  random_state=random_state,
+                                  n_jobs=-1)
+    gs = GridSearchCV(base, param_grid=grid, cv=inner_cv,
+                      scoring="accuracy", n_jobs=-1, refit=True)
+    gs.fit(X_tr, y_tr)
+    return gs.best_estimator_
+
 
 def crossval_ui_rf(data_pca: list, labels: list, users: list,
                     folds: list,
                     evr_list: list | None = None,
-                    tag: str = "") -> tuple[float, float, list]:
+                    tag: str = "",
+                    use_grid_search: bool = True
+                    ) -> tuple[float, float, list, np.ndarray]:
     X         = build_feature_dataset(data_pca, evr_list)
     y         = np.array(labels)
     fold_accs = []
+    correct: dict = {}
     for fold_num, (tr, te) in enumerate(folds):
-        clf = RandomForestClassifier(n_estimators=RF_N_TREES,
-                                     max_features=RF_MAX_FEATURES,
-                                     random_state=42, n_jobs=-1)
-        clf.fit(X[tr], y[tr])
-        acc = float(np.mean(clf.predict(X[te]) == y[te]))
+        if use_grid_search:
+            clf = _rf_fit_with_grid(X[tr], y[tr])
+        else:
+            clf = RandomForestClassifier(n_estimators=RF_N_TREES,
+                                         max_features=RF_MAX_FEATURES,
+                                         random_state=42, n_jobs=-1)
+            clf.fit(X[tr], y[tr])
+        preds = clf.predict(X[te])
+        acc   = float(np.mean(preds == y[te]))
         fold_accs.append(acc)
+        for idx, p in zip(te, preds.tolist()):
+            correct[idx] = int(p == labels[idx])
         u = sorted(set(users))[fold_num]
-        print(f"    RF{tag}   (UI) — User {u} → acc = {acc:.3f}")
-    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs
+        print(f"    RF{tag}   (UI) - User {u} -> acc = {acc:.3f}")
+    gu = _aggregate_gu_accuracy(correct, labels, users)
+    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs, gu
 
 
 def crossval_ud_rf(data_pca: list, labels: list, users: list,
                     folds: list,
                     evr_list: list | None = None,
-                    tag: str = "") -> tuple[float, float, list]:
+                    tag: str = "",
+                    use_grid_search: bool = True
+                    ) -> tuple[float, float, list, np.ndarray]:
     X         = build_feature_dataset(data_pca, evr_list)
     y         = np.array(labels)
     fold_accs = []
+    correct: dict = {}
     for fold_num, (tr, te, _te_users) in enumerate(folds):
-        clf = RandomForestClassifier(n_estimators=RF_N_TREES,
-                                     max_features=RF_MAX_FEATURES,
-                                     random_state=42, n_jobs=-1)
-        clf.fit(X[tr], y[tr])
-        acc = float(np.mean(clf.predict(X[te]) == y[te]))
+        if use_grid_search:
+            clf = _rf_fit_with_grid(X[tr], y[tr])
+        else:
+            clf = RandomForestClassifier(n_estimators=RF_N_TREES,
+                                         max_features=RF_MAX_FEATURES,
+                                         random_state=42, n_jobs=-1)
+            clf.fit(X[tr], y[tr])
+        preds = clf.predict(X[te])
+        acc   = float(np.mean(preds == y[te]))
         fold_accs.append(acc)
-        print(f"    RF{tag}   (UD) — Fold {fold_num} → acc = {acc:.3f}")
-    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs
+        for idx, p in zip(te, preds.tolist()):
+            correct[idx] = int(p == labels[idx])
+        print(f"    RF{tag}   (UD) - Fold {fold_num} -> acc = {acc:.3f}")
+    gu = _aggregate_gu_accuracy(correct, labels, users)
+    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs, gu
 
 
-# ── LSTM (v2: dropout + early stopping + multi-seed averaging) ────────────────
-
-def _build_lstm_model(timesteps: int, num_classes: int) -> Sequential:
+def analyse_rf_feature_importances(data_pca: list, labels: list,
+                                     evr_list: list | None,
+                                     domain: int,
+                                     save_path: str | None = None,
+                                     threshold: float = 0.01
+                                     ) -> list:
     """
-    LSTM model with dropout regularisation.
-
-    Architecture
-    ────────────
-    Masking → LSTM(64, dropout=0.3, recurrent_dropout=0.3)
-             → Dense(32, ReLU) → Dropout(0.3) → Dense(n_classes, softmax)
-
-    The dropout rate LSTM_DROPOUT (0.3) and the patience LSTM_ES_PATIENCE
-    (10) were selected as standard starting values recommended by
-    Goodfellow et al. (2016) for sequence classification with limited data.
+    Fit one RF on the full dataset (no leakage concern: this is post-hoc
+    inspection only, not used for evaluation), inspect feature_importances_,
+    and return the list of feature names whose importance exceeds the
+    threshold. A barplot is saved.
     """
-    model = Sequential([
-        Input(shape=(timesteps, 3)),
-        Masking(mask_value=0.0),
-        LSTM(LSTM_UNITS,
-             dropout=LSTM_DROPOUT,
-             recurrent_dropout=LSTM_DROPOUT),
-        Dense(LSTM_DENSE_UNITS, activation="relu"),
-        Dropout(LSTM_DROPOUT),
-        Dense(num_classes, activation="softmax"),
-    ])
-    model.compile(optimizer="adam",
-                  loss="sparse_categorical_crossentropy",
-                  metrics=["accuracy"])
-    return model
+    X = build_feature_dataset(data_pca, evr_list)
+    y = np.array(labels)
+    clf = RandomForestClassifier(n_estimators=RF_N_TREES,
+                                 max_features=RF_MAX_FEATURES,
+                                 random_state=42, n_jobs=-1)
+    clf.fit(X, y)
+    importances = clf.feature_importances_
+    names = feature_names(with_evr=(evr_list is not None))
+
+    order = np.argsort(importances)[::-1]
+    sorted_names = [names[i] for i in order]
+    sorted_imps  = importances[order]
+
+    fig, ax = plt.subplots(figsize=(9, max(4, 0.22 * len(names))))
+    ax.barh(range(len(sorted_names))[::-1], sorted_imps,
+            color="steelblue")
+    ax.set_yticks(range(len(sorted_names))[::-1])
+    ax.set_yticklabels(sorted_names, fontsize=7)
+    ax.axvline(threshold, color="red", linestyle="--",
+               label=f"threshold = {threshold}")
+    ax.set_xlabel("Feature importance (Gini)")
+    ax.set_title(f"RF feature importances - Domain {domain}")
+    ax.legend()
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=150)
+    plt.show()
+
+    kept = [names[i] for i, imp in enumerate(importances)
+            if imp >= threshold]
+    print(f"  RF feature reduction (Domain {domain}): "
+          f"{len(kept)}/{len(names)} kept (importance >= {threshold}).")
+    return kept
 
 
-def _train_lstm_one_seed(X_tr: np.ndarray,
-                          y_tr: np.ndarray,
-                          X_te: np.ndarray,
-                          y_te: np.ndarray,
-                          timesteps: int,
-                          num_classes: int,
-                          seed: int) -> float:
-    """
-    Train one LSTM model with a given random seed and return test accuracy.
-    Early stopping is used to prevent overfitting (patience=LSTM_ES_PATIENCE).
-    """
-    tf.random.set_seed(seed)
-    np.random.seed(seed)
+# -- $1 Recognizer (Kratz & Rohs, 2010) with cached templates -----------------
 
-    model = _build_lstm_model(timesteps, num_classes)
-    es    = EarlyStopping(monitor="val_loss",
-                          patience=LSTM_ES_PATIENCE,
-                          restore_best_weights=True,
-                          verbose=0)
-    model.fit(X_tr, y_tr,
-              epochs=LSTM_MAX_EPOCHS,
-              batch_size=LSTM_BATCH_SIZE,
-              validation_split=0.1,
-              callbacks=[es],
-              verbose=0)
-    _, acc = model.evaluate(X_te, y_te, verbose=0)
-    return float(acc)
+def _dollar_predict_one(cand_pre: np.ndarray,
+                         tmpl_pre: list,
+                         tmpl_lbl: list,
+                         k: int = KNN_K) -> int:
+    """1-NN (or kNN) prediction over precomputed distances."""
+    dists = np.array([_dollar_path_distance(cand_pre, t) for t in tmpl_pre])
+    return knn_predict_from_distances(dists, tmpl_lbl, k=k)
 
-
-def crossval_ui_lstm(data_pca: list, labels: list, users: list,
-                      folds: list,
-                      max_len: int) -> tuple[float, float, list]:
-    """
-    User-independent LSTM evaluation.
-    Each fold trains LSTM_N_SEEDS models (different initialisations) and
-    averages their test accuracy, reducing variance due to random seeds.
-    """
-    min_label   = int(np.min(labels))
-    labels_zi   = np.array(labels) - min_label
-    num_classes = len(np.unique(labels_zi))
-    X           = pad_sequences(data_pca, maxlen=max_len,
-                                dtype="float32", padding="post",
-                                truncating="post")
-    fold_accs = []
-    seeds     = list(range(42, 42 + LSTM_N_SEEDS))
-
-    for fold_num, (tr, te) in enumerate(folds):
-        X_tr, y_tr = X[tr], labels_zi[np.array(tr)]
-        X_te, y_te = X[te], labels_zi[np.array(te)]
-
-        seed_accs = [
-            _train_lstm_one_seed(X_tr, y_tr, X_te, y_te,
-                                 max_len, num_classes, s)
-            for s in seeds
-        ]
-        acc = float(np.mean(seed_accs))
-        fold_accs.append(acc)
-        u = sorted(set(users))[fold_num]
-        print(f"    LSTM (UI) — User {u} → acc = {acc:.3f}  "
-              f"(seeds: {[f'{a:.3f}' for a in seed_accs]})")
-    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs
-
-
-def crossval_ud_lstm(data_pca: list, labels: list, users: list,
-                      folds: list,
-                      max_len: int) -> tuple[float, float, list]:
-    """
-    User-dependent LSTM evaluation.
-    Same multi-seed averaging as the UI version.
-    """
-    min_label   = int(np.min(labels))
-    labels_zi   = np.array(labels) - min_label
-    num_classes = len(np.unique(labels_zi))
-    X           = pad_sequences(data_pca, maxlen=max_len,
-                                dtype="float32", padding="post",
-                                truncating="post")
-    fold_accs = []
-    seeds     = list(range(42, 42 + LSTM_N_SEEDS))
-
-    for fold_num, (tr, te, _te_users) in enumerate(folds):
-        X_tr, y_tr = X[tr], labels_zi[np.array(tr)]
-        X_te, y_te = X[te], labels_zi[np.array(te)]
-
-        seed_accs = [
-            _train_lstm_one_seed(X_tr, y_tr, X_te, y_te,
-                                 max_len, num_classes, s)
-            for s in seeds
-        ]
-        acc = float(np.mean(seed_accs))
-        fold_accs.append(acc)
-        print(f"    LSTM (UD) — Fold {fold_num} → acc = {acc:.3f}  "
-              f"(seeds: {[f'{a:.3f}' for a in seed_accs]})")
-    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs
-
-
-# ── $1 Recognizer ─────────────────────────────────────────────────────────────
 
 def crossval_ui_dollar(data: list, labels: list, users: list,
-                        folds: list) -> tuple[float, float, list]:
-    """
-    User-independent $1 Recognizer evaluation.
-    Each test gesture is compared to all training gestures via
-    dollar_distance (Steps 1–4 of Wobbrock et al., 2007).
-    """
+                        folds: list
+                        ) -> tuple[float, float, list, np.ndarray]:
     fold_accs = []
+    correct: dict = {}
+    # Preprocess all gestures ONCE (cached) -- per Wobbrock et al. (2007).
+    pre_all = [dollar_preprocess(seq) for seq in data]
     for fold_num, (tr, te) in enumerate(folds):
-        tr_items  = [data[i] for i in tr]
-        tr_labels = [labels[i] for i in tr]
-        te_items  = [data[i] for i in te]
-        te_labels = [labels[i] for i in te]
+        tmpl_pre = [pre_all[i] for i in tr]
+        tmpl_lbl = [labels[i]  for i in tr]
+        te_pre   = [pre_all[i] for i in te]
+        te_lbl   = [labels[i]  for i in te]
         preds = Parallel(n_jobs=-1, prefer="threads")(
-            delayed(knn_predict)(ts, tr_items, tr_labels,
-                                 dollar_distance, KNN_K)
-            for ts in te_items
+            delayed(_dollar_predict_one)(c, tmpl_pre, tmpl_lbl, KNN_K)
+            for c in te_pre
         )
-        acc = float(np.mean([p == t for p, t in zip(preds, te_labels)]))
+        acc = float(np.mean([p == t for p, t in zip(preds, te_lbl)]))
         fold_accs.append(acc)
+        for idx, p in zip(te, preds):
+            correct[idx] = int(p == labels[idx])
         u = sorted(set(users))[fold_num]
-        print(f"    $1   (UI) — User {u} held out → acc = {acc:.3f}")
-    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs
+        print(f"    $1   (UI) - User {u} held out -> acc = {acc:.3f}")
+    gu = _aggregate_gu_accuracy(correct, labels, users)
+    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs, gu
 
 
 def crossval_ud_dollar(data: list, labels: list, users: list,
-                        folds: list) -> tuple[float, float, list]:
-    """
-    User-dependent $1 Recognizer evaluation.
-    """
+                        folds: list
+                        ) -> tuple[float, float, list, np.ndarray]:
     fold_accs = []
+    correct: dict = {}
+    pre_all = [dollar_preprocess(seq) for seq in data]
     for fold_num, (tr, te, te_users) in enumerate(folds):
         tr_users_arr = [users[i] for i in tr]
-        te_items     = [data[i]  for i in te]
-        te_labels    = [labels[i] for i in te]
+        te_pre  = [pre_all[i]  for i in te]
+        te_lbl  = [labels[i]   for i in te]
         preds = []
-        for ts, ts_user in zip(te_items, te_users):
+        for c, ts_user in zip(te_pre, te_users):
             same_user_mask = [j for j, u in enumerate(tr_users_arr)
                               if u == ts_user]
-            tr_items_u  = [data[tr[j]] for j in same_user_mask]
-            tr_labels_u = [labels[tr[j]] for j in same_user_mask]
-            preds.append(
-                knn_predict(ts, tr_items_u, tr_labels_u,
-                            dollar_distance, KNN_K)
-            )
-        acc = float(np.mean([p == t for p, t in zip(preds, te_labels)]))
+            tmpl_pre_u = [pre_all[tr[j]] for j in same_user_mask]
+            tmpl_lbl_u = [labels[tr[j]]  for j in same_user_mask]
+            preds.append(_dollar_predict_one(c, tmpl_pre_u, tmpl_lbl_u,
+                                              KNN_K))
+        acc = float(np.mean([p == t for p, t in zip(preds, te_lbl)]))
         fold_accs.append(acc)
-        print(f"    $1   (UD) — Fold {fold_num} → acc = {acc:.3f}")
-    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs
+        for idx, p in zip(te, preds):
+            correct[idx] = int(p == labels[idx])
+        print(f"    $1   (UD) - Fold {fold_num} -> acc = {acc:.3f}")
+    gu = _aggregate_gu_accuracy(correct, labels, users)
+    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs, gu
 
 
 # ==============================================================================
-# 9.  ABLATION STUDY  — 5 methods × 3 preprocessing conditions
+# 8b.  HYPERPARAMETER VALIDATION CURVES
+#      Empirical iterative selection (instructions, Section 5).
+# ==============================================================================
+
+def validation_curve_kclusters(data_pca: list, labels: list, users: list,
+                                 folds: list,
+                                 ks: list = VC_K_CLUSTERS,
+                                 domain: int = 1,
+                                 save_path: str | None = None) -> int:
+    """
+    Plot Edit-Distance UI accuracy vs k-means K on the user-independent
+    folds. Returns the K that maximises mean accuracy.
+    """
+    means, stds = [], []
+    for k in ks:
+        accs = []
+        for tr, te in folds:
+            tr_data  = [data_pca[i] for i in tr]
+            te_data  = [data_pca[i] for i in te]
+            tr_lbl   = [labels[i]   for i in tr]
+            te_lbl   = [labels[i]   for i in te]
+            tr_seq, te_seq = fit_kmeans_and_encode(tr_data, te_data, k=k)
+            preds = Parallel(n_jobs=-1, prefer="threads")(
+                delayed(knn_predict)(ts, tr_seq, tr_lbl,
+                                     edit_distance, KNN_K)
+                for ts in te_seq
+            )
+            accs.append(float(np.mean(
+                [p == t for p, t in zip(preds, te_lbl)])))
+        means.append(float(np.mean(accs)))
+        stds.append(float(np.std(accs)))
+        print(f"  K={k:>3}: acc = {means[-1]:.3f} +/- {stds[-1]:.3f}")
+    best_k = ks[int(np.argmax(means))]
+
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.errorbar(ks, means, yerr=stds, marker="o", capsize=3,
+                color="steelblue")
+    ax.set_xlabel("k-means K (codebook size)")
+    ax.set_ylabel("Edit Distance UI accuracy")
+    ax.set_title(
+        f"Validation curve - K_CLUSTERS - Domain {domain} "
+        f"(best K = {best_k})")
+    ax.axvline(best_k, color="red", linestyle="--", alpha=0.6)
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=150)
+    plt.show()
+    return best_k
+
+
+def validation_curve_knn(data_pca: list, labels: list, users: list,
+                          folds: list,
+                          ks: list = VC_KNN_K,
+                          method: str = "dtw",
+                          domain: int = 1,
+                          save_path: str | None = None) -> int:
+    """
+    Plot kNN UI accuracy vs K with the DTW or Edit distance, on UI folds.
+    Returns the K that maximises mean accuracy.
+    """
+    if method == "dtw":
+        dist_fn = dtw_distance
+        prep    = lambda tr_d, te_d: (tr_d, te_d)
+    else:
+        dist_fn = edit_distance
+        prep    = lambda tr_d, te_d: fit_kmeans_and_encode(
+            tr_d, te_d, k=K_CLUSTERS)
+
+    means, stds = [], []
+    for k in ks:
+        accs = []
+        for tr, te in folds:
+            tr_d = [data_pca[i] for i in tr]
+            te_d = [data_pca[i] for i in te]
+            tr_l = [labels[i]   for i in tr]
+            te_l = [labels[i]   for i in te]
+            tr_in, te_in = prep(tr_d, te_d)
+            preds = Parallel(n_jobs=-1, prefer="threads")(
+                delayed(knn_predict)(ts, tr_in, tr_l, dist_fn, k)
+                for ts in te_in
+            )
+            accs.append(float(np.mean(
+                [p == t for p, t in zip(preds, te_l)])))
+        means.append(float(np.mean(accs)))
+        stds.append(float(np.std(accs)))
+        print(f"  k={k}: acc = {means[-1]:.3f} +/- {stds[-1]:.3f}")
+    best_k = ks[int(np.argmax(means))]
+
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.errorbar(ks, means, yerr=stds, marker="o", capsize=3,
+                color="darkorange")
+    ax.set_xlabel("kNN K")
+    ax.set_ylabel(f"{method.upper()} UI accuracy")
+    ax.set_title(
+        f"Validation curve - kNN K - {method.upper()} - "
+        f"Domain {domain} (best k = {best_k})")
+    ax.axvline(best_k, color="red", linestyle="--", alpha=0.6)
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=150)
+    plt.show()
+    return best_k
+
+
+# ==============================================================================
+# 9.  ABLATION STUDY  -- 4 methods x 3 preprocessing conditions
 # ==============================================================================
 
 def run_ablation_study(data_raw: list, data_std: list,
                         data_denoised: list, evr_list: list,
                         labels: list, users: list,
-                        max_len: int, domain: int
+                        domain: int
                         ) -> tuple[pd.DataFrame, dict]:
     """
-    Compare all five methods under three preprocessing conditions using
-    user-independent leave-one-user-out CV (10 folds, same splits for all).
-
-    Returns a best_preprocessing dict with one entry per method:
-        {
-          "DTW":           {"condition": "...", "data": ...,
-                            "evr": ..., "mean": 0.xxx, "folds": [...]},
-          "Edit Distance": {...},
-          "RF":            {...},
-          "LSTM":          {...},
-          "$1":            {...},
-        }
+    Compare four methods under three preprocessing conditions on UI 10-fold
+    CV. Returns a `best_preprocessing` dict per method.
 
     Conditions
     ----------
-    (a) No preprocessing  — raw 3D coordinates.
-    (b) Standardisation   — per-gesture zero-mean/unit-std.
-    (c) Std + PCA denoise — 3D→2D→3D denoising; RF features WITH EVR.
+    (a) No preprocessing
+    (b) Standardisation only
+    (c) Standardisation + per-gesture PCA denoising (full pipeline)
     """
     print(f"\n{'='*65}")
     print(f"  ABLATION STUDY | Domain {domain} | User-independent")
@@ -1261,7 +1316,7 @@ def run_ablation_study(data_raw: list, data_std: list,
     folds_ui = _ui_fold_indices(users)
 
     rows = []
-    methods   = ["Edit Distance", "DTW", "RF", "LSTM", "$1"]
+    methods   = ["Edit Distance", "DTW", "RF", "$1"]
     cond_data = {
         "(a) No preprocessing" : (data_raw,      None),
         "(b) Standardisation"  : (data_std,       None),
@@ -1269,69 +1324,56 @@ def run_ablation_study(data_raw: list, data_std: list,
     }
     results: dict = {m: {} for m in methods}
 
-    def _record(cond, method, mean, std, folds, note=""):
+    def _record(cond, method, mean, std, folds, gu, note=""):
         rows.append({"Preprocessing": cond, "Method": method,
                      "Mean": mean, "Std": std, "Note": note})
         note_str = f"  [{note}]" if note else ""
         print(f"    [{cond}] {method}: {mean:.3f} +/- {std:.3f}{note_str}")
-        results[method][cond] = (mean, std, folds)
+        results[method][cond] = (mean, std, folds, gu)
 
-    # ---------------------------------------------------------------- (a)
     print("\n  (a) No preprocessing")
-    m, s, f = crossval_ui_edit(data_raw, labels, users, folds_ui)
-    _record("(a) No preprocessing", "Edit Distance", m, s, f)
-    m, s, f = crossval_ui_dtw(data_raw, labels, users, folds_ui)
-    _record("(a) No preprocessing", "DTW", m, s, f)
-    m, s, f = crossval_ui_rf(data_raw, labels, users, folds_ui,
-                              evr_list=None, tag=" [no EVR]")
-    _record("(a) No preprocessing", "RF", m, s, f)
-    m, s, f = crossval_ui_lstm(data_raw, labels, users, folds_ui, max_len)
-    _record("(a) No preprocessing", "LSTM", m, s, f)
-    m, s, f = crossval_ui_dollar(data_raw, labels, users, folds_ui)
-    _record("(a) No preprocessing", "$1", m, s, f)
+    m, s, f, gu = crossval_ui_edit(data_raw, labels, users, folds_ui)
+    _record("(a) No preprocessing", "Edit Distance", m, s, f, gu)
+    m, s, f, gu = crossval_ui_dtw(data_raw, labels, users, folds_ui)
+    _record("(a) No preprocessing", "DTW", m, s, f, gu)
+    m, s, f, gu = crossval_ui_rf(data_raw, labels, users, folds_ui,
+                                   evr_list=None, tag=" [no EVR]")
+    _record("(a) No preprocessing", "RF", m, s, f, gu)
+    m, s, f, gu = crossval_ui_dollar(data_raw, labels, users, folds_ui)
+    _record("(a) No preprocessing", "$1", m, s, f, gu)
 
-    # ---------------------------------------------------------------- (b)
     print("\n  (b) Standardisation only")
-    m, s, f = crossval_ui_edit(data_std, labels, users, folds_ui)
-    _record("(b) Standardisation", "Edit Distance", m, s, f)
-    m, s, f = crossval_ui_dtw(data_std, labels, users, folds_ui)
-    _record("(b) Standardisation", "DTW", m, s, f)
-    m, s, f = crossval_ui_rf(data_std, labels, users, folds_ui,
-                              evr_list=None, tag=" [no EVR]")
-    _record("(b) Standardisation", "RF", m, s, f)
-    m, s, f = crossval_ui_lstm(data_std, labels, users, folds_ui, max_len)
-    _record("(b) Standardisation", "LSTM", m, s, f)
-    m, s, f = crossval_ui_dollar(data_std, labels, users, folds_ui)
-    _record("(b) Standardisation", "$1", m, s, f)
+    m, s, f, gu = crossval_ui_edit(data_std, labels, users, folds_ui)
+    _record("(b) Standardisation", "Edit Distance", m, s, f, gu)
+    m, s, f, gu = crossval_ui_dtw(data_std, labels, users, folds_ui)
+    _record("(b) Standardisation", "DTW", m, s, f, gu)
+    m, s, f, gu = crossval_ui_rf(data_std, labels, users, folds_ui,
+                                   evr_list=None, tag=" [no EVR]")
+    _record("(b) Standardisation", "RF", m, s, f, gu)
+    m, s, f, gu = crossval_ui_dollar(data_std, labels, users, folds_ui)
+    _record("(b) Standardisation", "$1", m, s, f, gu)
 
-    # ---------------------------------------------------------------- (c)
-    print("\n  (c) Standardisation + PCA denoising 3D→2D→3D (full pipeline)")
-    m, s, f = crossval_ui_edit(data_denoised, labels, users, folds_ui)
-    _record("(c) Std + PCA denoise", "Edit Distance", m, s, f)
-    m, s, f = crossval_ui_dtw(data_denoised, labels, users, folds_ui)
-    _record("(c) Std + PCA denoise", "DTW", m, s, f)
-    m, s, f = crossval_ui_rf(data_denoised, labels, users, folds_ui,
-                              evr_list=evr_list, tag=" [+EVR]")
-    _record("(c) Std + PCA denoise", "RF", m, s, f,
+    print("\n  (c) Standardisation + PCA denoising 3D->2D->3D")
+    m, s, f, gu = crossval_ui_edit(data_denoised, labels, users, folds_ui)
+    _record("(c) Std + PCA denoise", "Edit Distance", m, s, f, gu)
+    m, s, f, gu = crossval_ui_dtw(data_denoised, labels, users, folds_ui)
+    _record("(c) Std + PCA denoise", "DTW", m, s, f, gu)
+    m, s, f, gu = crossval_ui_rf(data_denoised, labels, users, folds_ui,
+                                   evr_list=evr_list, tag=" [+EVR]")
+    _record("(c) Std + PCA denoise", "RF", m, s, f, gu,
             note="3 PCA EVR values added to RF feature vector")
-    m, s, f = crossval_ui_lstm(data_denoised, labels, users, folds_ui,
-                                max_len)
-    _record("(c) Std + PCA denoise", "LSTM", m, s, f)
-    m, s, f = crossval_ui_dollar(data_denoised, labels, users, folds_ui)
-    _record("(c) Std + PCA denoise", "$1", m, s, f)
+    m, s, f, gu = crossval_ui_dollar(data_denoised, labels, users, folds_ui)
+    _record("(c) Std + PCA denoise", "$1", m, s, f, gu)
 
-    # ----------------------------------------------------------------
-    # Best preprocessing per method
-    # ----------------------------------------------------------------
     best_preprocessing: dict = {}
 
-    print(f"\n  {'─'*60}")
-    print(f"  Best preprocessing per method — Domain {domain}:")
-    print(f"  {'─'*60}")
+    print(f"\n  {'-'*60}")
+    print(f"  Best preprocessing per method - Domain {domain}:")
+    print(f"  {'-'*60}")
 
     for method in methods:
         best_cond = max(results[method], key=lambda c: results[method][c][0])
-        best_mean, best_std, best_folds = results[method][best_cond]
+        best_mean, best_std, best_folds, best_gu = results[method][best_cond]
         best_data, best_evr = cond_data[best_cond]
 
         if method == "RF" and best_cond != "(c) Std + PCA denoise":
@@ -1344,6 +1386,7 @@ def run_ablation_study(data_raw: list, data_std: list,
             "mean"     : best_mean,
             "std"      : best_std,
             "folds"    : best_folds,
+            "gu"       : best_gu,
         }
         print(f"    {method:<16}: {best_cond}  "
               f"(mean acc = {best_mean:.3f} +/- {best_std:.3f})")
@@ -1353,149 +1396,153 @@ def run_ablation_study(data_raw: list, data_std: list,
                     + " +/- " + df["Std"].map("{:.3f}".format))
     pivot = df.pivot_table(index="Preprocessing", columns="Method",
                            values="Result", aggfunc="first")
-    print(f"\n  Ablation summary — Domain {domain}:")
+    print(f"\n  Ablation summary - Domain {domain}:")
     print(pivot.to_string())
     df.to_csv(f"ablation_domain{domain}.csv", index=False)
-    print(f"  Saved → ablation_domain{domain}.csv")
+    print(f"  Saved -> ablation_domain{domain}.csv")
 
     return df, best_preprocessing
 
 
 # ==============================================================================
 # 10.  STATISTICAL TESTS
-#      Paired Wilcoxon + permutation test (for robustness with n=10)
+#      Paired Wilcoxon signed-rank on n=100 (gesture, user) accuracy pairs.
+#      Bonferroni + Benjamini-Hochberg FDR corrections.
 # ==============================================================================
 
-def _permutation_pvalue(a: list, b: list,
-                         n_perm: int = 10_000,
-                         rng: np.random.Generator | None = None) -> float:
+def _safe_wilcoxon(a: np.ndarray, b: np.ndarray) -> float:
     """
-    Two-sided paired permutation test on the difference of fold accuracies.
-
-    Under H0, the sign of each paired difference is exchangeable.
-    We randomly flip signs and compare the resulting mean difference to
-    the observed one.  With n=10 folds, all 2^10=1024 permutations are
-    exact; here we use Monte-Carlo for simplicity (n_perm=10000).
-
-    Reference: Good (2005) "Permutation, Parametric, and Bootstrap Tests
-               of Hypotheses", Springer.
+    Wrapper around scipy.stats.wilcoxon (signed-rank) that handles the
+    degenerate case where all paired differences are zero (raises in
+    scipy) by returning p=1.0.
+    NaNs are dropped pairwise prior to the test.
     """
-    if rng is None:
-        rng = np.random.default_rng(0)
-    diffs   = np.array(a, dtype=float) - np.array(b, dtype=float)
-    obs_stat = float(np.abs(np.mean(diffs)))
-    n        = len(diffs)
-    count    = 0
-    for _ in range(n_perm):
-        signs    = rng.choice([-1.0, 1.0], size=n)
-        perm_stat = float(np.abs(np.mean(signs * diffs)))
-        if perm_stat >= obs_stat:
-            count += 1
-    return count / n_perm
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+    mask = ~(np.isnan(a) | np.isnan(b))
+    a, b = a[mask], b[mask]
+    if len(a) == 0 or np.allclose(a, b):
+        warnings.warn("Wilcoxon: zero differences -> p set to 1.0",
+                      RuntimeWarning, stacklevel=2)
+        return 1.0
+    try:
+        _, p = wilcoxon(a, b, zero_method="wilcox")
+    except ValueError:
+        warnings.warn("Wilcoxon raised ValueError -> p set to 1.0",
+                      RuntimeWarning, stacklevel=2)
+        return 1.0
+    return float(p)
 
 
-def generate_pvalue_table(methods_results: dict,
+def generate_pvalue_table(methods_gu: dict,
                            domain: int) -> pd.DataFrame:
     """
-    Paired Wilcoxon signed-rank test + paired permutation test for all
-    method pairs, with Benjamini-Hochberg FDR correction applied
-    separately to each set of p-values.
+    Pairwise Wilcoxon signed-rank test on the n=100 vectors of
+    per-(gesture, user) accuracies (10 gestures x 10 users).
+    Bonferroni and Benjamini-Hochberg corrections are reported.
+    Saves a square symmetric CSV of raw p-values and a heatmap PNG.
+
+    Parameters
+    ----------
+    methods_gu : dict[str, np.ndarray]
+        method name -> 100-vector of per-(gesture, user) accuracies.
     """
-    names = list(methods_results.keys())
+    names = list(methods_gu.keys())
     n     = len(names)
 
-    pairs = [(i, j) for i in range(n) for j in range(i + 1, n)
-             if len(methods_results[names[i]]) ==
-                len(methods_results[names[j]])]
-    n_comp     = max(len(pairs), 1)
-    alpha_bonf = 0.05 / n_comp
+    pairs   = [(i, j) for i in range(n) for j in range(i + 1, n)]
+    n_comp  = max(len(pairs), 1)
+    alpha   = 0.05
+    a_bonf  = alpha / n_comp
 
-    pair_labels, raw_pvals_wilcox, raw_pvals_perm = [], [], []
-    rng = np.random.default_rng(42)
-
+    raw_pvals = []
     for i, j in pairs:
-        try:
-            _, p_w = wilcoxon(methods_results[names[i]],
-                              methods_results[names[j]])
-        except ValueError:
-            # All differences are zero — methods are identical on every fold
-            p_w = 1.0
-        p_perm = _permutation_pvalue(methods_results[names[i]],
-                                      methods_results[names[j]],
-                                      n_perm=10_000, rng=rng)
-        pair_labels.append((names[i], names[j]))
-        raw_pvals_wilcox.append(float(p_w))
-        raw_pvals_perm.append(float(p_perm))
+        raw_pvals.append(_safe_wilcoxon(methods_gu[names[i]],
+                                          methods_gu[names[j]]))
 
-    # BH correction on Wilcoxon p-values
-    if raw_pvals_wilcox:
+    if raw_pvals:
         reject_bh, pvals_bh, _, _ = multipletests(
-            raw_pvals_wilcox, alpha=0.05, method="fdr_bh")
+            raw_pvals, alpha=alpha, method="fdr_bh")
+        reject_bf, pvals_bf, _, _ = multipletests(
+            raw_pvals, alpha=alpha, method="bonferroni")
     else:
         reject_bh, pvals_bh = [], []
-
-    # BH correction on permutation p-values
-    if raw_pvals_perm:
-        reject_bh_perm, pvals_bh_perm, _, _ = multipletests(
-            raw_pvals_perm, alpha=0.05, method="fdr_bh")
-    else:
-        reject_bh_perm, pvals_bh_perm = [], []
+        reject_bf, pvals_bf = [], []
 
     matrix = np.full((n, n), np.nan)
-    np.fill_diagonal(matrix, 1.0)
     for k_idx, (i, j) in enumerate(pairs):
-        matrix[i, j] = raw_pvals_wilcox[k_idx]
-        matrix[j, i] = raw_pvals_wilcox[k_idx]
+        matrix[i, j] = raw_pvals[k_idx]
+        matrix[j, i] = raw_pvals[k_idx]
     df_raw = pd.DataFrame(matrix, index=names, columns=names)
 
     sep = "=" * 80
     print(f"\n{sep}")
     print(f"  Statistical tests | Domain {domain} | User-independent")
-    print(f"  Pairs : {n_comp}  |  n=10 per method")
-    print(f"  Test 1 : Paired Wilcoxon signed-rank (fold #i of A vs B)")
-    print(f"  Test 2 : Paired permutation test (10 000 permutations, seed=42)")
-    print(f"  Both corrected with Benjamini-Hochberg FDR at 5%")
-    print(f"  Bonferroni threshold : alpha/{n_comp} = {alpha_bonf:.4f}")
+    print(f"  Pairs : {n_comp}  |  n = 100 (10 gestures x 10 users)")
+    print(f"  Test  : Paired Wilcoxon signed-rank on per-(gesture, user) "
+          f"accuracies")
+    print(f"  Corrections : Bonferroni (alpha = {a_bonf:.4f}) + "
+          f"Benjamini-Hochberg FDR @ 5%")
     print(sep)
-
-    print("\n  RAW Wilcoxon p-value matrix:")
+    print("\n  RAW Wilcoxon p-value matrix (symmetric):")
     print(df_raw.round(4).to_string())
 
-    hdr = (f"\n  {'Method A':<20} {'Method B':<20} "
-           f"{'Wilcox p':>9}  {'W-BH p':>9}  {'W-BH sig':>9}  "
-           f"{'Perm p':>9}  {'Perm-BH p':>10}  {'P-BH sig':>9}")
+    hdr = (f"\n  {'Method A':<18} {'Method B':<18} "
+           f"{'p_raw':>9}  {'p_BH':>9}  {'BH sig':>7}  "
+           f"{'p_Bonf':>9}  {'Bonf sig':>9}")
     print(hdr)
-    print("  " + "-" * 100)
+    print("  " + "-" * 95)
     for k_idx, (i, j) in enumerate(pairs):
-        na, nb      = names[i], names[j]
-        p_w         = raw_pvals_wilcox[k_idx]
-        p_bh_w      = float(pvals_bh[k_idx])
-        bh_w_ok     = "YES *" if reject_bh[k_idx]      else "no"
-        p_p         = raw_pvals_perm[k_idx]
-        p_bh_p      = float(pvals_bh_perm[k_idx])
-        bh_p_ok     = "YES *" if reject_bh_perm[k_idx] else "no"
-        print(f"  {na:<20} {nb:<20} {p_w:>9.4f}  {p_bh_w:>9.4f}  "
-              f"{bh_w_ok:>9}  {p_p:>9.4f}  {p_bh_p:>10.4f}  {bh_p_ok:>9}")
+        na, nb  = names[i], names[j]
+        p_r     = raw_pvals[k_idx]
+        p_bh    = float(pvals_bh[k_idx])
+        bh_ok   = "YES *" if reject_bh[k_idx] else "no"
+        p_bf    = float(pvals_bf[k_idx])
+        bf_ok   = "YES *" if reject_bf[k_idx] else "no"
+        print(f"  {na:<18} {nb:<18} {p_r:>9.4f}  {p_bh:>9.4f}  "
+              f"{bh_ok:>7}  {p_bf:>9.4f}  {bf_ok:>9}")
 
-    means    = {name: float(np.mean(folds))
-                for name, folds in methods_results.items()}
+    means = {name: float(np.nanmean(gu))
+             for name, gu in methods_gu.items()}
     best     = max(means, key=means.get)
     best_idx = names.index(best)
     print(f"\n  Best mean accuracy: {best} ({means[best]:.3f})")
-
     all_sig = True
     for k_idx, (i, j) in enumerate(pairs):
         if best_idx in (i, j) and not reject_bh[k_idx]:
             other = names[j] if i == best_idx else names[i]
-            print(f"  → {best} NOT significantly better than {other} "
-                  f"(Wilcoxon BH p={pvals_bh[k_idx]:.4f}, "
-                  f"Perm BH p={pvals_bh_perm[k_idx]:.4f})")
+            print(f"  -> {best} NOT significantly better than {other} "
+                  f"(BH p={pvals_bh[k_idx]:.4f}, "
+                  f"Bonf p={pvals_bf[k_idx]:.4f})")
             all_sig = False
     if all_sig and len(pairs) > 0:
-        print(f"  → {best} is significantly better than ALL others (BH)")
+        print(f"  -> {best} is significantly better than ALL others (BH)")
 
-    df_raw.to_csv(f"p_values_domain{domain}_user_independent.csv")
-    print(f"  Saved → p_values_domain{domain}_user_independent.csv")
+    csv_path = f"p_values_domain{domain}_user_independent.csv"
+    df_raw.to_csv(csv_path)
+    print(f"  Saved -> {csv_path}")
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+    im = ax.imshow(matrix, cmap="viridis_r", vmin=0.0, vmax=0.1)
+    ax.set_xticks(range(n))
+    ax.set_yticks(range(n))
+    ax.set_xticklabels(names, rotation=45, ha="right")
+    ax.set_yticklabels(names)
+    for i in range(n):
+        for j in range(n):
+            if not np.isnan(matrix[i, j]):
+                ax.text(j, i, f"{matrix[i, j]:.3f}",
+                        ha="center", va="center",
+                        color="white" if matrix[i, j] < 0.05 else "black",
+                        fontsize=8)
+    ax.set_title(f"Wilcoxon p-values (n=100) - Domain {domain}")
+    plt.colorbar(im, ax=ax, label="p-value")
+    plt.tight_layout()
+    heatmap_path = f"p_values_heatmap_domain{domain}.png"
+    plt.savefig(heatmap_path, dpi=150)
+    print(f"  Saved -> {heatmap_path}")
+    plt.show()
+
     return df_raw
 
 
@@ -1504,7 +1551,7 @@ def generate_pvalue_table(methods_results: dict,
 # ==============================================================================
 
 def _safe_filename(title: str) -> str:
-    for ch in [" ", "|", "(", ")", "-", "/", "+", "→"]:
+    for ch in [" ", "|", "(", ")", "-", "/", "+", "->"]:
         title = title.replace(ch, "_")
     return title
 
@@ -1522,7 +1569,7 @@ def _plot_cm(y_true: list, y_pred: list,
 
 def compute_cm_edit(data_denoised: list, labels: list, users: list,
                      folds: list,
-                     title: str = "Confusion matrix — Edit Distance") -> None:
+                     title: str = "Confusion matrix - Edit Distance") -> None:
     y_true, y_pred = [], []
     for tr, te in folds:
         tr_data   = [data_denoised[i] for i in tr]
@@ -1543,7 +1590,7 @@ def compute_cm_edit(data_denoised: list, labels: list, users: list,
 
 def compute_cm_dtw(data_denoised: list, labels: list, users: list,
                     folds: list,
-                    title: str = "Confusion matrix — DTW") -> None:
+                    title: str = "Confusion matrix - DTW") -> None:
     y_true, y_pred = [], []
     for tr, te in folds:
         tr_items  = [data_denoised[i] for i in tr]
@@ -1563,64 +1610,32 @@ def compute_cm_dtw(data_denoised: list, labels: list, users: list,
 def compute_cm_rf(data_denoised: list, labels: list, users: list,
                    folds: list,
                    evr_list: list | None = None,
-                   title: str = "Confusion matrix — RF") -> None:
+                   title: str = "Confusion matrix - RF") -> None:
     X      = build_feature_dataset(data_denoised, evr_list)
     y      = np.array(labels)
     y_true, y_pred = [], []
     for tr, te in folds:
-        clf = RandomForestClassifier(n_estimators=RF_N_TREES,
-                                     max_features=RF_MAX_FEATURES,
-                                     random_state=42, n_jobs=-1)
-        clf.fit(X[tr], y[tr])
+        clf = _rf_fit_with_grid(X[tr], y[tr])
         y_true.extend(y[te].tolist())
         y_pred.extend(clf.predict(X[te]).tolist())
     _plot_cm(y_true, y_pred, sorted(set(labels)), title)
 
 
-def compute_cm_lstm(data_denoised: list, labels: list, users: list,
-                     folds: list, max_len: int,
-                     title: str = "Confusion matrix — LSTM") -> None:
-    min_label   = int(np.min(labels))
-    labels_zi   = np.array(labels) - min_label
-    num_classes = len(np.unique(labels_zi))
-    X = pad_sequences(data_denoised, maxlen=max_len,
-                      dtype="float32", padding="post", truncating="post")
-    y_true, y_pred = [], []
-    seeds = list(range(42, 42 + LSTM_N_SEEDS))
-    for tr, te in folds:
-        X_tr, y_tr = X[tr], labels_zi[np.array(tr)]
-        X_te, y_te = X[te], labels_zi[np.array(te)]
-        # Use first seed only for CM (speed); main scores already averaged
-        tf.random.set_seed(42)
-        np.random.seed(42)
-        model = _build_lstm_model(max_len, num_classes)
-        es    = EarlyStopping(monitor="val_loss", patience=LSTM_ES_PATIENCE,
-                              restore_best_weights=True, verbose=0)
-        model.fit(X_tr, y_tr,
-                  epochs=LSTM_MAX_EPOCHS,
-                  batch_size=LSTM_BATCH_SIZE,
-                  validation_split=0.1, callbacks=[es], verbose=0)
-        raw = np.argmax(model.predict(X_te, verbose=0), axis=1)
-        y_true.extend((labels_zi[np.array(te)] + min_label).tolist())
-        y_pred.extend((raw + min_label).tolist())
-    _plot_cm(y_true, y_pred, sorted(set(labels)), title)
-
-
 def compute_cm_dollar(data: list, labels: list, users: list,
                        folds: list,
-                       title: str = "Confusion matrix — $1") -> None:
+                       title: str = "Confusion matrix - $1") -> None:
+    pre_all = [dollar_preprocess(seq) for seq in data]
     y_true, y_pred = [], []
     for tr, te in folds:
-        tr_items  = [data[i] for i in tr]
-        tr_labels = [labels[i] for i in tr]
-        te_items  = [data[i]  for i in te]
-        te_labels = [labels[i] for i in te]
+        tmpl_pre = [pre_all[i] for i in tr]
+        tmpl_lbl = [labels[i]  for i in tr]
+        te_pre   = [pre_all[i] for i in te]
+        te_lbl   = [labels[i]  for i in te]
         preds = Parallel(n_jobs=-1, prefer="threads")(
-            delayed(knn_predict)(ts, tr_items, tr_labels,
-                                 dollar_distance, KNN_K)
-            for ts in te_items
+            delayed(_dollar_predict_one)(c, tmpl_pre, tmpl_lbl, KNN_K)
+            for c in te_pre
         )
-        y_true.extend(te_labels)
+        y_true.extend(te_lbl)
         y_pred.extend(preds)
     _plot_cm(y_true, y_pred, sorted(set(labels)), title)
 
@@ -1628,7 +1643,7 @@ def compute_cm_dollar(data: list, labels: list, users: list,
 def draw_best_model_cm(best_name: str,
                         data_best: list, evr_best: list | None,
                         labels: list, users: list,
-                        folds_ui: list, max_len: int,
+                        folds_ui: list,
                         domain: int) -> None:
     tag = f"User-independent Domain {domain}"
     if best_name == "Edit Distance":
@@ -1640,9 +1655,6 @@ def draw_best_model_cm(best_name: str,
     elif best_name == "RF":
         compute_cm_rf(data_best, labels, users, folds_ui, evr_best,
                       title=f"RF {tag}")
-    elif best_name == "LSTM":
-        compute_cm_lstm(data_best, labels, users, folds_ui, max_len,
-                        title=f"LSTM {tag}")
     elif best_name == "$1":
         compute_cm_dollar(data_best, labels, users, folds_ui,
                           title=f"$1 {tag}")
@@ -1656,7 +1668,7 @@ def save_fold_results(fold_accs: list, method: str,
                        setting: str, domain: int) -> None:
     fname = f"results_domain{domain}_{setting}_{method}.csv"
     pd.DataFrame({"accuracy": fold_accs}).to_csv(fname, index=False)
-    print(f"  Saved → {fname}")
+    print(f"  Saved -> {fname}")
 
 
 # ==============================================================================
@@ -1665,11 +1677,8 @@ def save_fold_results(fold_accs: list, method: str,
 
 if __name__ == "__main__":
 
-    # ------------------------------------------------------------------
-    # 0.  Global seeds for reproducibility + numba JIT warm-up
-    # ------------------------------------------------------------------
+    # -- 0. Reproducibility & numba warm-up -------------------------------
     np.random.seed(42)
-    tf.random.set_seed(42)
 
     print("Warming up numba JIT ...", end=" ", flush=True)
     _d = np.random.randn(10, 3)
@@ -1678,9 +1687,7 @@ if __name__ == "__main__":
     edit_distance(_s, _s)
     print("done.")
 
-    # ------------------------------------------------------------------
-    # 1.  Load data
-    # ------------------------------------------------------------------
+    # -- 1. Load data ------------------------------------------------------
     print("\n=== Loading Domain 1 ===")
     data1, labels1, users1 = load_domain1(DOMAIN1_DIR)
     max_len1 = print_dataset_info(data1, labels1, users1, "Domain 1")
@@ -1689,9 +1696,7 @@ if __name__ == "__main__":
     data4, labels4, users4 = load_domain4(DOMAIN4_DIR)
     max_len4 = print_dataset_info(data4, labels4, users4, "Domain 4")
 
-    # ------------------------------------------------------------------
-    # 2.  Exploratory visualisation
-    # ------------------------------------------------------------------
+    # -- 2. Exploratory visualisation -------------------------------------
     print("\n=== Exploratory Visualisation ===")
     plot_sequence_lengths(data1, labels1, "Domain 1",
                           save_path="d1_sequence_lengths.png")
@@ -1702,59 +1707,73 @@ if __name__ == "__main__":
     plot_gesture_samples(data4, labels4, users4, "Domain 4",
                          save_path="d4_gesture_samples.png")
 
-    # ------------------------------------------------------------------
-    # 3.  Standardisation
-    # ------------------------------------------------------------------
+    # -- 3. Standardisation -----------------------------------------------
     print("\n=== Standardisation ===")
     data1_std = standardize_gestures(data1)
     data4_std = standardize_gestures(data4)
     print("  Both domains standardised (per-gesture, per-axis).")
 
-    # ------------------------------------------------------------------
-    # 4.  Per-gesture PCA denoising  3D → 2D → 3D
-    # ------------------------------------------------------------------
+    # -- 4. PCA denoising -------------------------------------------------
     print("\n=== Per-gesture PCA denoising analysis ===")
     summarise_pca_denoising(data1_std, "Domain 1",
                              save_path="d1_pca_denoise.png")
     summarise_pca_denoising(data4_std, "Domain 4",
                              save_path="d4_pca_denoise.png")
 
-    print("\n=== Applying PCA denoising (3D → 2D → 3D) ===")
+    print("\n=== Applying PCA denoising (3D -> 2D -> 3D) ===")
     data1_denoised, evr1 = apply_pca_denoising(data1_std, n_keep=PCA_N_KEEP)
     data4_denoised, evr4 = apply_pca_denoising(data4_std, n_keep=PCA_N_KEEP)
     print("  PCA denoising applied to both domains.")
-    print(f"  Domain 1 — example EVR: {evr1[0].round(3)}")
-    print(f"  Domain 4 — example EVR: {evr4[0].round(3)}")
 
-    # ------------------------------------------------------------------
-    # 5.  Generate fold indices ONCE — shared by ALL methods
-    # ------------------------------------------------------------------
+    # -- 5. Fold indices --------------------------------------------------
     print("\n=== Generating fold indices (shared across all methods) ===")
     folds_ui_1 = _ui_fold_indices(users1)
     folds_ud_1 = _ud_fold_indices(labels1, users1)
     folds_ui_4 = _ui_fold_indices(users4)
     folds_ud_4 = _ud_fold_indices(labels4, users4)
-    print(f"  Domain 1 — UI folds: {len(folds_ui_1)} | "
-          f"UD folds: {len(folds_ud_1)}")
-    print(f"  Domain 4 — UI folds: {len(folds_ui_4)} | "
-          f"UD folds: {len(folds_ud_4)}")
+    print(f"  Domain 1 - UI: {len(folds_ui_1)} | UD: {len(folds_ud_1)}")
+    print(f"  Domain 4 - UI: {len(folds_ui_4)} | UD: {len(folds_ud_4)}")
 
-    # ------------------------------------------------------------------
-    # 6.  Ablation study  (5 methods × 3 preprocessing conditions)
-    # ------------------------------------------------------------------
-    print("\n=== Ablation Study — Domain 1 ===")
+    # -- 6. Validation curves for K (empirical iterative selection) -------
+    print("\n=== Validation curves - hyperparameter K ===")
+    print("  Domain 1 - K_CLUSTERS scan (Edit Distance UI):")
+    best_k_clusters_d1 = validation_curve_kclusters(
+        data1_denoised, labels1, users1, folds_ui_1,
+        domain=1, save_path="d1_vc_kclusters.png")
+    print("  Domain 1 - kNN K scan (DTW UI):")
+    best_knn_k_d1 = validation_curve_knn(
+        data1_denoised, labels1, users1, folds_ui_1,
+        method="dtw", domain=1, save_path="d1_vc_knn.png")
+    print(f"  Domain 1 selected: K_CLUSTERS={best_k_clusters_d1}, "
+          f"KNN_K={best_knn_k_d1}")
+
+    print("\n  Domain 4 - K_CLUSTERS scan (Edit Distance UI):")
+    best_k_clusters_d4 = validation_curve_kclusters(
+        data4_denoised, labels4, users4, folds_ui_4,
+        domain=4, save_path="d4_vc_kclusters.png")
+    print("  Domain 4 - kNN K scan (DTW UI):")
+    best_knn_k_d4 = validation_curve_knn(
+        data4_denoised, labels4, users4, folds_ui_4,
+        method="dtw", domain=4, save_path="d4_vc_knn.png")
+    print(f"  Domain 4 selected: K_CLUSTERS={best_k_clusters_d4}, "
+          f"KNN_K={best_knn_k_d4}")
+
+    # NOTE: validation curves are reported in the manuscript but the main
+    # evaluation below uses the global defaults K_CLUSTERS / KNN_K so that
+    # the ablation study and statistical tests remain comparable across
+    # domains. Per-domain optima can be reported separately.
+
+    # -- 7. Ablation study ------------------------------------------------
+    print("\n=== Ablation Study - Domain 1 ===")
     _, best_prep_d1 = run_ablation_study(
         data1, data1_std, data1_denoised, evr1,
-        labels1, users1, max_len1, domain=1)
+        labels1, users1, domain=1)
 
-    print("\n=== Ablation Study — Domain 4 ===")
+    print("\n=== Ablation Study - Domain 4 ===")
     _, best_prep_d4 = run_ablation_study(
         data4, data4_std, data4_denoised, evr4,
-        labels4, users4, max_len4, domain=4)
+        labels4, users4, domain=4)
 
-    # ------------------------------------------------------------------
-    # Helper: map ablation condition → UD dataset
-    # ------------------------------------------------------------------
     def _ud_data_for(best_entry: dict,
                      raw: list, std: list, denoised: list,
                      evr: list) -> tuple[list, list | None]:
@@ -1766,13 +1785,22 @@ if __name__ == "__main__":
         else:
             return denoised, evr
 
-    # ------------------------------------------------------------------
-    # 7.  Domain 1 — USER-INDEPENDENT  (reuse ablation fold accuracies)
-    # ------------------------------------------------------------------
-    print("\n=== Main Evaluation — Domain 1 — User-Independent (10 folds) ===")
-    print("  (Using per-method optimal preprocessing from ablation study)\n")
+    # -- 8. RF feature importance analysis (post-hoc, both domains) -------
+    print("\n=== RF feature importance analysis ===")
+    rf_d1_data, rf_d1_evr = _ud_data_for(best_prep_d1["RF"],
+                                          data1, data1_std, data1_denoised, evr1)
+    analyse_rf_feature_importances(rf_d1_data, labels1, rf_d1_evr,
+                                     domain=1,
+                                     save_path="d1_rf_feature_importance.png")
+    rf_d4_data, rf_d4_evr = _ud_data_for(best_prep_d4["RF"],
+                                          data4, data4_std, data4_denoised, evr4)
+    analyse_rf_feature_importances(rf_d4_data, labels4, rf_d4_evr,
+                                     domain=4,
+                                     save_path="d4_rf_feature_importance.png")
 
-    for method in ["Edit Distance", "DTW", "RF", "LSTM", "$1"]:
+    # -- 9. Domain 1 - UI (reuse ablation fold accuracies) ----------------
+    print("\n=== Main Evaluation - Domain 1 - User-Independent ===")
+    for method in ["Edit Distance", "DTW", "RF", "$1"]:
         entry = best_prep_d1[method]
         print(f"  {method}: best condition = {entry['condition']}  "
               f"(mean = {entry['mean']:.3f} +/- {entry['std']:.3f})")
@@ -1780,117 +1808,85 @@ if __name__ == "__main__":
     folds_ed1     = best_prep_d1["Edit Distance"]["folds"]
     folds_dtw1    = best_prep_d1["DTW"]["folds"]
     folds_rf1     = best_prep_d1["RF"]["folds"]
-    folds_lstm1   = best_prep_d1["LSTM"]["folds"]
     folds_dollar1 = best_prep_d1["$1"]["folds"]
 
-    mean_ed1     = best_prep_d1["Edit Distance"]["mean"]
-    mean_dtw1    = best_prep_d1["DTW"]["mean"]
-    mean_rf1     = best_prep_d1["RF"]["mean"]
-    mean_lstm1   = best_prep_d1["LSTM"]["mean"]
-    mean_dollar1 = best_prep_d1["$1"]["mean"]
+    gu_ed1     = best_prep_d1["Edit Distance"]["gu"]
+    gu_dtw1    = best_prep_d1["DTW"]["gu"]
+    gu_rf1     = best_prep_d1["RF"]["gu"]
+    gu_dollar1 = best_prep_d1["$1"]["gu"]
 
-    std_ed1     = best_prep_d1["Edit Distance"]["std"]
-    std_dtw1    = best_prep_d1["DTW"]["std"]
-    std_rf1     = best_prep_d1["RF"]["std"]
-    std_lstm1   = best_prep_d1["LSTM"]["std"]
-    std_dollar1 = best_prep_d1["$1"]["std"]
+    mean_ed1, std_ed1         = best_prep_d1["Edit Distance"]["mean"], best_prep_d1["Edit Distance"]["std"]
+    mean_dtw1, std_dtw1       = best_prep_d1["DTW"]["mean"],           best_prep_d1["DTW"]["std"]
+    mean_rf1, std_rf1         = best_prep_d1["RF"]["mean"],            best_prep_d1["RF"]["std"]
+    mean_dollar1, std_dollar1 = best_prep_d1["$1"]["mean"],            best_prep_d1["$1"]["std"]
 
     save_fold_results(folds_ed1,     "edit",   "user_independent", 1)
     save_fold_results(folds_dtw1,    "dtw",    "user_independent", 1)
     save_fold_results(folds_rf1,     "rf",     "user_independent", 1)
-    save_fold_results(folds_lstm1,   "lstm",   "user_independent", 1)
     save_fold_results(folds_dollar1, "dollar", "user_independent", 1)
 
-    # ------------------------------------------------------------------
-    # 8.  Domain 1 — USER-DEPENDENT
-    # ------------------------------------------------------------------
-    print("\n=== Main Evaluation — Domain 1 — User-Dependent (10 folds) ===")
-
+    # -- 10. Domain 1 - UD ------------------------------------------------
+    print("\n=== Main Evaluation - Domain 1 - User-Dependent ===")
     d1_ed_data,    d1_ed_evr   = _ud_data_for(best_prep_d1["Edit Distance"],
                                                data1, data1_std, data1_denoised, evr1)
     d1_dtw_data,   _            = _ud_data_for(best_prep_d1["DTW"],
                                                data1, data1_std, data1_denoised, evr1)
     d1_rf_data,    d1_rf_evr   = _ud_data_for(best_prep_d1["RF"],
                                                data1, data1_std, data1_denoised, evr1)
-    d1_lstm_data,  _            = _ud_data_for(best_prep_d1["LSTM"],
-                                               data1, data1_std, data1_denoised, evr1)
     d1_dollar_data, _           = _ud_data_for(best_prep_d1["$1"],
                                                data1, data1_std, data1_denoised, evr1)
 
     print(f"\n  Edit Distance  [{best_prep_d1['Edit Distance']['condition']}]:")
-    mean_ed1_ud, std_ed1_ud, folds_ed1_ud = crossval_ud_edit(
+    mean_ed1_ud, std_ed1_ud, folds_ed1_ud, _ = crossval_ud_edit(
         d1_ed_data, labels1, users1, folds_ud_1)
-    print(f"  → {mean_ed1_ud:.3f} +/- {std_ed1_ud:.3f}")
     save_fold_results(folds_ed1_ud, "edit", "user_dependent", 1)
 
     print(f"\n  DTW  [{best_prep_d1['DTW']['condition']}]:")
-    mean_dtw1_ud, std_dtw1_ud, folds_dtw1_ud = crossval_ud_dtw(
+    mean_dtw1_ud, std_dtw1_ud, folds_dtw1_ud, _ = crossval_ud_dtw(
         d1_dtw_data, labels1, users1, folds_ud_1)
-    print(f"  → {mean_dtw1_ud:.3f} +/- {std_dtw1_ud:.3f}")
     save_fold_results(folds_dtw1_ud, "dtw", "user_dependent", 1)
 
     print(f"\n  Random Forest  [{best_prep_d1['RF']['condition']}]:")
-    mean_rf1_ud, std_rf1_ud, folds_rf1_ud = crossval_ud_rf(
+    mean_rf1_ud, std_rf1_ud, folds_rf1_ud, _ = crossval_ud_rf(
         d1_rf_data, labels1, users1, folds_ud_1,
         evr_list=d1_rf_evr, tag=" [adaptive]")
-    print(f"  → {mean_rf1_ud:.3f} +/- {std_rf1_ud:.3f}")
     save_fold_results(folds_rf1_ud, "rf", "user_dependent", 1)
 
-    print(f"\n  LSTM  [{best_prep_d1['LSTM']['condition']}]:")
-    mean_lstm1_ud, std_lstm1_ud, folds_lstm1_ud = crossval_ud_lstm(
-        d1_lstm_data, labels1, users1, folds_ud_1, max_len1)
-    print(f"  → {mean_lstm1_ud:.3f} +/- {std_lstm1_ud:.3f}")
-    save_fold_results(folds_lstm1_ud, "lstm", "user_dependent", 1)
-
     print(f"\n  $1 Recognizer  [{best_prep_d1['$1']['condition']}]:")
-    mean_dollar1_ud, std_dollar1_ud, folds_dollar1_ud = crossval_ud_dollar(
+    mean_dollar1_ud, std_dollar1_ud, folds_dollar1_ud, _ = crossval_ud_dollar(
         d1_dollar_data, labels1, users1, folds_ud_1)
-    print(f"  → {mean_dollar1_ud:.3f} +/- {std_dollar1_ud:.3f}")
     save_fold_results(folds_dollar1_ud, "dollar", "user_dependent", 1)
 
-    # ------------------------------------------------------------------
-    # 9.  Statistical tests — Domain 1
-    # ------------------------------------------------------------------
-    print("\n=== Statistical Tests — Domain 1 ===")
-    results_ui_d1 = {
-        "Edit Distance": folds_ed1,
-        "DTW"          : folds_dtw1,
-        "RF"           : folds_rf1,
-        "LSTM"         : folds_lstm1,
-        "$1"           : folds_dollar1,
+    # -- 11. Statistical tests Domain 1 -----------------------------------
+    print("\n=== Statistical Tests - Domain 1 ===")
+    results_gu_d1 = {
+        "Edit Distance": gu_ed1,
+        "DTW"          : gu_dtw1,
+        "RF"           : gu_rf1,
+        "$1"           : gu_dollar1,
     }
-    generate_pvalue_table(results_ui_d1, domain=1)
+    generate_pvalue_table(results_gu_d1, domain=1)
 
-    print("\n  [CAVEAT] Statistical tests compare methods under their individually")
-    print("  optimal preprocessing conditions. Fold vectors are paired by fold")
-    print("  index only, not by identical input data. Interpret p-values accordingly.")
-
-    # ------------------------------------------------------------------
-    # 10.  Confusion matrix — best model — Domain 1
-    # ------------------------------------------------------------------
+    # -- 12. Confusion matrix - best model - Domain 1 ---------------------
     all_ui_d1 = {"Edit Distance": mean_ed1, "DTW": mean_dtw1,
-                 "RF": mean_rf1, "LSTM": mean_lstm1, "$1": mean_dollar1}
+                 "RF": mean_rf1, "$1": mean_dollar1}
     best_name_d1  = max(all_ui_d1, key=all_ui_d1.get)
     best_entry_d1 = best_prep_d1[best_name_d1]
-    print(f"\n  Best model — Domain 1 (UI): {best_name_d1} "
+    print(f"\n  Best model - Domain 1 (UI): {best_name_d1} "
           f"({all_ui_d1[best_name_d1]:.3f})  "
           f"[{best_entry_d1['condition']}]")
     draw_best_model_cm(best_name_d1,
                        best_entry_d1["data"],
                        best_entry_d1["evr"],
-                       labels1, users1, folds_ui_1, max_len1, domain=1)
+                       labels1, users1, folds_ui_1, domain=1)
 
-    # ==================================================================
+    # ====================================================================
     # DOMAIN 4
-    # ==================================================================
+    # ====================================================================
 
-    # ------------------------------------------------------------------
-    # 11.  Domain 4 — USER-INDEPENDENT
-    # ------------------------------------------------------------------
-    print("\n=== Main Evaluation — Domain 4 — User-Independent (10 folds) ===")
-    print("  (Using per-method optimal preprocessing from ablation study)\n")
-
-    for method in ["Edit Distance", "DTW", "RF", "LSTM", "$1"]:
+    # -- 13. Domain 4 - UI ------------------------------------------------
+    print("\n=== Main Evaluation - Domain 4 - User-Independent ===")
+    for method in ["Edit Distance", "DTW", "RF", "$1"]:
         entry = best_prep_d4[method]
         print(f"  {method}: best condition = {entry['condition']}  "
               f"(mean = {entry['mean']:.3f} +/- {entry['std']:.3f})")
@@ -1898,158 +1894,119 @@ if __name__ == "__main__":
     folds_ed4     = best_prep_d4["Edit Distance"]["folds"]
     folds_dtw4    = best_prep_d4["DTW"]["folds"]
     folds_rf4     = best_prep_d4["RF"]["folds"]
-    folds_lstm4   = best_prep_d4["LSTM"]["folds"]
     folds_dollar4 = best_prep_d4["$1"]["folds"]
 
-    mean_ed4     = best_prep_d4["Edit Distance"]["mean"]
-    mean_dtw4    = best_prep_d4["DTW"]["mean"]
-    mean_rf4     = best_prep_d4["RF"]["mean"]
-    mean_lstm4   = best_prep_d4["LSTM"]["mean"]
-    mean_dollar4 = best_prep_d4["$1"]["mean"]
+    gu_ed4     = best_prep_d4["Edit Distance"]["gu"]
+    gu_dtw4    = best_prep_d4["DTW"]["gu"]
+    gu_rf4     = best_prep_d4["RF"]["gu"]
+    gu_dollar4 = best_prep_d4["$1"]["gu"]
 
-    std_ed4     = best_prep_d4["Edit Distance"]["std"]
-    std_dtw4    = best_prep_d4["DTW"]["std"]
-    std_rf4     = best_prep_d4["RF"]["std"]
-    std_lstm4   = best_prep_d4["LSTM"]["std"]
-    std_dollar4 = best_prep_d4["$1"]["std"]
+    mean_ed4, std_ed4         = best_prep_d4["Edit Distance"]["mean"], best_prep_d4["Edit Distance"]["std"]
+    mean_dtw4, std_dtw4       = best_prep_d4["DTW"]["mean"],           best_prep_d4["DTW"]["std"]
+    mean_rf4, std_rf4         = best_prep_d4["RF"]["mean"],            best_prep_d4["RF"]["std"]
+    mean_dollar4, std_dollar4 = best_prep_d4["$1"]["mean"],            best_prep_d4["$1"]["std"]
 
     save_fold_results(folds_ed4,     "edit",   "user_independent", 4)
     save_fold_results(folds_dtw4,    "dtw",    "user_independent", 4)
     save_fold_results(folds_rf4,     "rf",     "user_independent", 4)
-    save_fold_results(folds_lstm4,   "lstm",   "user_independent", 4)
     save_fold_results(folds_dollar4, "dollar", "user_independent", 4)
 
-    # ------------------------------------------------------------------
-    # 12.  Domain 4 — USER-DEPENDENT
-    # ------------------------------------------------------------------
-    print("\n=== Main Evaluation — Domain 4 — User-Dependent (10 folds) ===")
-
+    # -- 14. Domain 4 - UD ------------------------------------------------
+    print("\n=== Main Evaluation - Domain 4 - User-Dependent ===")
     d4_ed_data,    d4_ed_evr   = _ud_data_for(best_prep_d4["Edit Distance"],
                                                data4, data4_std, data4_denoised, evr4)
     d4_dtw_data,   _            = _ud_data_for(best_prep_d4["DTW"],
                                                data4, data4_std, data4_denoised, evr4)
     d4_rf_data,    d4_rf_evr   = _ud_data_for(best_prep_d4["RF"],
                                                data4, data4_std, data4_denoised, evr4)
-    d4_lstm_data,  _            = _ud_data_for(best_prep_d4["LSTM"],
-                                               data4, data4_std, data4_denoised, evr4)
     d4_dollar_data, _           = _ud_data_for(best_prep_d4["$1"],
                                                data4, data4_std, data4_denoised, evr4)
 
     print(f"\n  Edit Distance  [{best_prep_d4['Edit Distance']['condition']}]:")
-    mean_ed4_ud, std_ed4_ud, folds_ed4_ud = crossval_ud_edit(
+    mean_ed4_ud, std_ed4_ud, folds_ed4_ud, _ = crossval_ud_edit(
         d4_ed_data, labels4, users4, folds_ud_4)
-    print(f"  → {mean_ed4_ud:.3f} +/- {std_ed4_ud:.3f}")
     save_fold_results(folds_ed4_ud, "edit", "user_dependent", 4)
 
     print(f"\n  DTW  [{best_prep_d4['DTW']['condition']}]:")
-    mean_dtw4_ud, std_dtw4_ud, folds_dtw4_ud = crossval_ud_dtw(
+    mean_dtw4_ud, std_dtw4_ud, folds_dtw4_ud, _ = crossval_ud_dtw(
         d4_dtw_data, labels4, users4, folds_ud_4)
-    print(f"  → {mean_dtw4_ud:.3f} +/- {std_dtw4_ud:.3f}")
     save_fold_results(folds_dtw4_ud, "dtw", "user_dependent", 4)
 
     print(f"\n  Random Forest  [{best_prep_d4['RF']['condition']}]:")
-    mean_rf4_ud, std_rf4_ud, folds_rf4_ud = crossval_ud_rf(
+    mean_rf4_ud, std_rf4_ud, folds_rf4_ud, _ = crossval_ud_rf(
         d4_rf_data, labels4, users4, folds_ud_4,
         evr_list=d4_rf_evr, tag=" [adaptive]")
-    print(f"  → {mean_rf4_ud:.3f} +/- {std_rf4_ud:.3f}")
     save_fold_results(folds_rf4_ud, "rf", "user_dependent", 4)
 
-    print(f"\n  LSTM  [{best_prep_d4['LSTM']['condition']}]:")
-    mean_lstm4_ud, std_lstm4_ud, folds_lstm4_ud = crossval_ud_lstm(
-        d4_lstm_data, labels4, users4, folds_ud_4, max_len4)
-    print(f"  → {mean_lstm4_ud:.3f} +/- {std_lstm4_ud:.3f}")
-    save_fold_results(folds_lstm4_ud, "lstm", "user_dependent", 4)
-
     print(f"\n  $1 Recognizer  [{best_prep_d4['$1']['condition']}]:")
-    mean_dollar4_ud, std_dollar4_ud, folds_dollar4_ud = crossval_ud_dollar(
+    mean_dollar4_ud, std_dollar4_ud, folds_dollar4_ud, _ = crossval_ud_dollar(
         d4_dollar_data, labels4, users4, folds_ud_4)
-    print(f"  → {mean_dollar4_ud:.3f} +/- {std_dollar4_ud:.3f}")
     save_fold_results(folds_dollar4_ud, "dollar", "user_dependent", 4)
 
-    # ------------------------------------------------------------------
-    # 13.  Statistical tests — Domain 4
-    # ------------------------------------------------------------------
-    print("\n=== Statistical Tests — Domain 4 ===")
-    results_ui_d4 = {
-        "Edit Distance": folds_ed4,
-        "DTW"          : folds_dtw4,
-        "RF"           : folds_rf4,
-        "LSTM"         : folds_lstm4,
-        "$1"           : folds_dollar4,
+    # -- 15. Statistical tests Domain 4 -----------------------------------
+    print("\n=== Statistical Tests - Domain 4 ===")
+    results_gu_d4 = {
+        "Edit Distance": gu_ed4,
+        "DTW"          : gu_dtw4,
+        "RF"           : gu_rf4,
+        "$1"           : gu_dollar4,
     }
-    generate_pvalue_table(results_ui_d4, domain=4)
+    generate_pvalue_table(results_gu_d4, domain=4)
 
-    print("\n  [CAVEAT] Statistical tests compare methods under their individually")
-    print("  optimal preprocessing conditions. Fold vectors are paired by fold")
-    print("  index only, not by identical input data. Interpret p-values accordingly.")
-
-    # ------------------------------------------------------------------
-    # 14.  Confusion matrix — best model — Domain 4
-    # ------------------------------------------------------------------
+    # -- 16. Confusion matrix - best model - Domain 4 ---------------------
     all_ui_d4 = {"Edit Distance": mean_ed4, "DTW": mean_dtw4,
-                 "RF": mean_rf4, "LSTM": mean_lstm4, "$1": mean_dollar4}
+                 "RF": mean_rf4, "$1": mean_dollar4}
     best_name_d4  = max(all_ui_d4, key=all_ui_d4.get)
     best_entry_d4 = best_prep_d4[best_name_d4]
-    print(f"\n  Best model — Domain 4 (UI): {best_name_d4} "
+    print(f"\n  Best model - Domain 4 (UI): {best_name_d4} "
           f"({all_ui_d4[best_name_d4]:.3f})  "
           f"[{best_entry_d4['condition']}]")
     draw_best_model_cm(best_name_d4,
                        best_entry_d4["data"],
                        best_entry_d4["evr"],
-                       labels4, users4, folds_ui_4, max_len4, domain=4)
+                       labels4, users4, folds_ui_4, domain=4)
 
-    # ------------------------------------------------------------------
-    # 15.  Final summary table
-    # ------------------------------------------------------------------
+    # -- 17. Final summary table ------------------------------------------
     print("\n" + "=" * 70)
-    print("FINAL SUMMARY — Mean accuracy +/- std")
-    print("UI = user-independent (10 folds) | UD = user-dependent (10 folds)")
-    print("Best preprocessing per method selected automatically from ablation.")
+    print("FINAL SUMMARY - Mean accuracy +/- std")
+    print("UI = user-independent | UD = user-dependent")
     print("=" * 70)
 
     summary_rows = []
     for domain, res, bp in [
         (1, {
-            ("Edit Distance", "UI"): (mean_ed1,       std_ed1,
+            ("Edit Distance", "UI"): (mean_ed1,        std_ed1,
                                       best_prep_d1["Edit Distance"]["condition"]),
-            ("DTW",           "UI"): (mean_dtw1,      std_dtw1,
+            ("DTW",           "UI"): (mean_dtw1,       std_dtw1,
                                       best_prep_d1["DTW"]["condition"]),
-            ("RF",            "UI"): (mean_rf1,       std_rf1,
+            ("RF",            "UI"): (mean_rf1,        std_rf1,
                                       best_prep_d1["RF"]["condition"]),
-            ("LSTM",          "UI"): (mean_lstm1,     std_lstm1,
-                                      best_prep_d1["LSTM"]["condition"]),
-            ("$1",            "UI"): (mean_dollar1,   std_dollar1,
+            ("$1",            "UI"): (mean_dollar1,    std_dollar1,
                                       best_prep_d1["$1"]["condition"]),
-            ("Edit Distance", "UD"): (mean_ed1_ud,    std_ed1_ud,
+            ("Edit Distance", "UD"): (mean_ed1_ud,     std_ed1_ud,
                                       best_prep_d1["Edit Distance"]["condition"]),
-            ("DTW",           "UD"): (mean_dtw1_ud,   std_dtw1_ud,
+            ("DTW",           "UD"): (mean_dtw1_ud,    std_dtw1_ud,
                                       best_prep_d1["DTW"]["condition"]),
-            ("RF",            "UD"): (mean_rf1_ud,    std_rf1_ud,
+            ("RF",            "UD"): (mean_rf1_ud,     std_rf1_ud,
                                       best_prep_d1["RF"]["condition"]),
-            ("LSTM",          "UD"): (mean_lstm1_ud,  std_lstm1_ud,
-                                      best_prep_d1["LSTM"]["condition"]),
             ("$1",            "UD"): (mean_dollar1_ud, std_dollar1_ud,
                                       best_prep_d1["$1"]["condition"]),
         }, best_prep_d1),
         (4, {
-            ("Edit Distance", "UI"): (mean_ed4,       std_ed4,
+            ("Edit Distance", "UI"): (mean_ed4,        std_ed4,
                                       best_prep_d4["Edit Distance"]["condition"]),
-            ("DTW",           "UI"): (mean_dtw4,      std_dtw4,
+            ("DTW",           "UI"): (mean_dtw4,       std_dtw4,
                                       best_prep_d4["DTW"]["condition"]),
-            ("RF",            "UI"): (mean_rf4,       std_rf4,
+            ("RF",            "UI"): (mean_rf4,        std_rf4,
                                       best_prep_d4["RF"]["condition"]),
-            ("LSTM",          "UI"): (mean_lstm4,     std_lstm4,
-                                      best_prep_d4["LSTM"]["condition"]),
-            ("$1",            "UI"): (mean_dollar4,   std_dollar4,
+            ("$1",            "UI"): (mean_dollar4,    std_dollar4,
                                       best_prep_d4["$1"]["condition"]),
-            ("Edit Distance", "UD"): (mean_ed4_ud,    std_ed4_ud,
+            ("Edit Distance", "UD"): (mean_ed4_ud,     std_ed4_ud,
                                       best_prep_d4["Edit Distance"]["condition"]),
-            ("DTW",           "UD"): (mean_dtw4_ud,   std_dtw4_ud,
+            ("DTW",           "UD"): (mean_dtw4_ud,    std_dtw4_ud,
                                       best_prep_d4["DTW"]["condition"]),
-            ("RF",            "UD"): (mean_rf4_ud,    std_rf4_ud,
+            ("RF",            "UD"): (mean_rf4_ud,     std_rf4_ud,
                                       best_prep_d4["RF"]["condition"]),
-            ("LSTM",          "UD"): (mean_lstm4_ud,  std_lstm4_ud,
-                                      best_prep_d4["LSTM"]["condition"]),
             ("$1",            "UD"): (mean_dollar4_ud, std_dollar4_ud,
                                       best_prep_d4["$1"]["condition"]),
         }, best_prep_d4),
@@ -2075,9 +2032,9 @@ if __name__ == "__main__":
     print("\n  Preprocessing selected per method:")
     for domain_id, bp in [(1, best_prep_d1), (4, best_prep_d4)]:
         print(f"\n  Domain {domain_id}:")
-        for method in ["Edit Distance", "DTW", "RF", "LSTM", "$1"]:
+        for method in ["Edit Distance", "DTW", "RF", "$1"]:
             print(f"    {method:<16}: {bp[method]['condition']}")
 
     df_summary.to_csv("summary_results.csv", index=False)
-    print("\n  Saved → summary_results.csv")
+    print("\n  Saved -> summary_results.csv")
     print("\nDone.")
