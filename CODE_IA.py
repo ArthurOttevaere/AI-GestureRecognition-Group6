@@ -13,22 +13,40 @@ Phase 2 : Pre-processing
                 * Fitted on training-set 3D points only per fold
                 * Centroids applied to encode both train and test sequences
 Phase 3 : Baseline methods (DTW + Edit Distance with k-means quantization)
-            - 1-NN classifier for both
+            - 1-NN classifier for both (KNN_K = 1 enforced; see below)
 Phase 4 : Advanced methods
-            - Random Forest with GridSearchCV (nested CV) + feature importance
+            - Decision Tree (Quinlan 1986, Breiman et al. 1984 CART) with
+              GridSearchCV (nested CV). Acts as pedagogical baseline to
+              demonstrate empirically the bagging gain of Random Forest.
+            - Random Forest (Breiman 2001) with GridSearchCV (nested CV)
+              + post-hoc feature importance analysis.
+            - SVM with RBF kernel (Cortes & Vapnik 1995) with GridSearchCV
+              (nested CV). Reference classifier in feature-based gesture
+              recognition (Mitra & Acharya 2007 survey, Wu & Huang 1999,
+              Bhattacharya et al. 2014).
             - $1 Recognizer 3D (Kratz & Rohs, 2010) with Rodrigues rotation,
-              uniform cube scaling, confidence score, and N-best list
+              uniform cube scaling, confidence score, and N-best list.
 Phase 5 : Cross-validation
             - User-independent : leave-one-user-out (10 folds)
             - User-dependent   : leave-one-sample-out (10 folds)
-          Ablation study: 4 methods x 3 preprocessing conditions
+          Ablation study: 6 methods x 3 preprocessing conditions
 Phase 6 : Hyperparameter validation curves (empirical iterative selection)
+            - K_CLUSTERS optimum from sensitivity analysis is USED in the
+              rest of the pipeline.
+            - KNN_K is FORCED to 1 (1-NN) regardless of the validation
+              curve outcome (see Major scientific decisions #8).
 Phase 7 : Statistical tests
             - Paired Wilcoxon signed-rank test on n=100 paired observations
               (10 gestures x 10 users), one accuracy per (gesture, user) pair
               for each method.
             - Bonferroni correction + Benjamini-Hochberg FDR correction.
-            - Pairwise p-value matrix saved as CSV + heatmap.
+            - Pairwise p-value matrix (6x6) saved as CSV + heatmap.
+
+Outputs are organised under Outputs/ in nested subfolders by type:
+    figures/{exploratory, pca_denoising, validation_curves,
+             feature_importance, confusion_matrices, statistical_tests}
+    tables/{ablation, fold_results, statistical_tests, summary}
+    Documentation/  (LaTeX internal pedagogical memo, see plan)
 
 Major scientific decisions
 --------------------------
@@ -73,25 +91,58 @@ Major scientific decisions
    (3-fold inner CV). Feature importances analysed post-hoc to
    identify and prune uninformative features.
 
-6. Hyperparameter tuning asymmetry. Random Forest hyperparameters are
-   selected per-fold via GridSearchCV (nested CV, inner CV = 3 folds).
-   DTW and Edit Distance hyperparameters (kNN K, k-means K) are selected
-   once via empirical validation curves on the full user-independent CV,
-   then kept fixed for evaluation. This asymmetry is intentional: DTW
-   and Edit Distance have at most 2 scalar hyperparameters with a clear
-   plateau; RF has a combinatorial grid that requires per-fold tuning to
-   avoid overfitting. The comparison is therefore between best-configured
-   versions of each method, not between methods sharing an identical
-   tuning protocol. This limitation is acknowledged in the report.
+6. Hyperparameter tuning asymmetry. RF, Decision Tree and SVM
+   hyperparameters are selected per-fold via GridSearchCV (nested CV,
+   inner CV = 3 folds). DTW and Edit Distance hyperparameters
+   (k-means K) are selected once via empirical validation curves on the
+   full user-independent CV, then kept fixed for evaluation. This
+   asymmetry is intentional: DTW and Edit Distance have at most 2 scalar
+   hyperparameters with a clear plateau; tree- and kernel-based
+   classifiers have a combinatorial grid that requires per-fold tuning
+   to avoid overfitting. The comparison is therefore between
+   best-configured versions of each method, not between methods sharing
+   an identical tuning protocol. This limitation is acknowledged in the
+   report.
 
-7. K-clustering / k-NN K selected via empirical validation curves
-   (accuracy vs K) on the user-independent CV.
+7. K-clustering selected via empirical validation curve (Edit Distance
+   accuracy vs K on user-independent CV). The best K is then used in
+   all downstream Edit-Distance evaluations.
+
+8. KNN_K = 1 ENFORCED. A validation curve scanning k in {1,3,5,7,9} is
+   produced for transparency (saved to Outputs/figures/validation_curves)
+   but the rest of the pipeline ALWAYS uses k = 1. This is consistent
+   with the gesture recognition literature where 1-NN is the canonical
+   baseline:
+     - Wobbrock et al. (2007) report results with the single best
+       template ($1 design is implicitly 1-NN).
+     - Mezari & Maglogiannis (2018) use 1-NN for their commodity-device
+       recognizer.
+     - Liu et al. (2009) uFlash baseline uses 1-NN.
+     - Mitra & Acharya (2007) gesture recognition survey discusses 1-NN
+       as the standard non-parametric baseline.
+   1-NN gives a transparent, parameter-free baseline that is robust to
+   outliers being broken by majority voting with small k.
+
+9. Decision Tree included as pedagogical control. Comparing DT (single
+   tree) to RF (bag of trees) empirically demonstrates the value of
+   bagging on this dataset (Breiman 2001, Hastie et al. 2009, ch. 15).
+
+10. SVM with RBF kernel included as a non-tree-based reference
+    classifier with strong gesture-recognition pedigree:
+      - Mitra & Acharya (2007), Pattern Recognition survey, §5.4.
+      - Wu & Huang (1999), "Vision-based gesture recognition: A
+        review", §3.1.
+      - Bhattacharya et al. (2014), "Recognition of hand gestures from
+        cyber-glove data using machine learning".
+      - Liu et al. (2012), gesture-based interaction systems.
 
 References
 ----------
-Wobbrock, J.O., Wilson, A.D., & Li, Y. (2007). Gestures without
-  libraries, toolkits or training: A $1 recognizer for user interface
-  prototypes. UIST'07, 159-168.
+Breiman, L. (2001). Random forests. Machine Learning, 45 (1), 5-32.
+Breiman, L., Friedman, J., Olshen, R., & Stone, C. (1984).
+  Classification and regression trees (CART). Wadsworth.
+Cortes, C., & Vapnik, V. (1995). Support-vector networks.
+  Machine Learning, 20, 273-297.
 Kratz, S., & Rohs, M. (2010). A $3 gesture recognizer: simple gesture
   recognition for devices equipped with 3D acceleration sensors.
   IUI'10, 341-344.
@@ -100,6 +151,15 @@ Kratz, S., & Rohs, M. (2011). Protractor3D: A closed-form solution to
 Mezari, A., & Maglogiannis, I. (2018). An easily customized gesture
   recognizer for assisted living using commodity mobile devices.
   Journal of Healthcare Engineering, 2018:3180652.
+Mitra, S., & Acharya, T. (2007). Gesture recognition: A survey.
+  IEEE Trans. SMC-C, 37 (3), 311-324.
+Quinlan, J. R. (1986). Induction of decision trees.
+  Machine Learning, 1 (1), 81-106.
+Wobbrock, J.O., Wilson, A.D., & Li, Y. (2007). Gestures without
+  libraries, toolkits or training: A $1 recognizer for user interface
+  prototypes. UIST'07, 159-168.
+Wu, Y., & Huang, T. S. (1999). Vision-based gesture recognition:
+  A review. Gesture Workshop, LNAI 1739, 103-115.
 
 Authors : Andry Lenny / El Mohcine Mohamed / Ottevaere Arthur
 Group   : Group 6
@@ -118,6 +178,8 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVC
 from sklearn.model_selection import GridSearchCV
 from joblib import Parallel, delayed
 from numba import njit
@@ -161,6 +223,21 @@ RF_GRID = {
 }
 RF_GRID_INNER_CV = 3
 
+# Decision Tree GridSearchCV grid (Quinlan 1986; Breiman et al. 1984 CART)
+DT_GRID = {
+    "max_depth"        : [None, 10, 20],
+    "min_samples_split": [2, 5, 10],
+    "criterion"        : ["gini", "entropy"],
+}
+DT_GRID_INNER_CV = 3
+
+# SVM (RBF) GridSearchCV grid (Cortes & Vapnik 1995; Mitra & Acharya 2007)
+SVM_GRID = {
+    "C"     : [0.1, 1.0, 10.0, 100.0],
+    "gamma" : ["scale", 0.01, 0.1, 1.0],
+}
+SVM_GRID_INNER_CV = 3
+
 # Validation-curve scan ranges (Section 5 of instructions)
 VC_K_CLUSTERS = [5, 10, 15, 20, 25, 30, 40]
 VC_KNN_K      = [1, 3, 5, 7, 9]
@@ -169,6 +246,32 @@ VC_KNN_K      = [1, 3, 5, 7, 9]
 DOLLAR_N         = 64           # number of resampled points
 DOLLAR_L         = 1.0          # side of the normalised cube
 DOLLAR_SCORE_DENOM = 0.5 * np.sqrt(3.0) * DOLLAR_L   # diagonal/2 of the cube
+
+
+# ---------------------------------------------------------------------------
+# Output folder organisation
+# ---------------------------------------------------------------------------
+# All artefacts produced by this script are written under Outputs/ in a
+# nested structure that groups files by type and purpose.
+
+OUTPUTS_DIR      = os.path.join(_BASE, "Outputs")
+DIR_FIG_EXPLORE  = os.path.join(OUTPUTS_DIR, "figures", "exploratory")
+DIR_FIG_PCA      = os.path.join(OUTPUTS_DIR, "figures", "pca_denoising")
+DIR_FIG_VC       = os.path.join(OUTPUTS_DIR, "figures", "validation_curves")
+DIR_FIG_FI       = os.path.join(OUTPUTS_DIR, "figures", "feature_importance")
+DIR_FIG_CM       = os.path.join(OUTPUTS_DIR, "figures", "confusion_matrices")
+DIR_FIG_STATS    = os.path.join(OUTPUTS_DIR, "figures", "statistical_tests")
+DIR_TBL_ABLATION = os.path.join(OUTPUTS_DIR, "tables",  "ablation")
+DIR_TBL_FOLDS    = os.path.join(OUTPUTS_DIR, "tables",  "fold_results")
+DIR_TBL_STATS    = os.path.join(OUTPUTS_DIR, "tables",  "statistical_tests")
+DIR_TBL_SUMMARY  = os.path.join(OUTPUTS_DIR, "tables",  "summary")
+DIR_DOC          = os.path.join(OUTPUTS_DIR, "Documentation")
+
+for _d in [DIR_FIG_EXPLORE, DIR_FIG_PCA, DIR_FIG_VC, DIR_FIG_FI,
+           DIR_FIG_CM, DIR_FIG_STATS,
+           DIR_TBL_ABLATION, DIR_TBL_FOLDS, DIR_TBL_STATS, DIR_TBL_SUMMARY,
+           DIR_DOC]:
+    os.makedirs(_d, exist_ok=True)
 
 
 # ==============================================================================
@@ -1181,6 +1284,155 @@ def analyse_rf_feature_importances(data_pca: list, labels: list,
     return kept
 
 
+# -- Decision Tree with GridSearchCV ------------------------------------------
+# Used as a pedagogical baseline to empirically demonstrate the value of the
+# bagging procedure in Random Forest. References:
+#   Quinlan, J. R. (1986). Induction of decision trees. Mach. Learn., 1, 81-106.
+#   Breiman, L., Friedman, J., Olshen, R., & Stone, C. (1984). Classification
+#     and regression trees (CART). Wadsworth.
+#   Hastie, Tibshirani, Friedman (2009), §9.2 (single tree) and §15 (RF).
+
+def _dt_fit_with_grid(X_tr: np.ndarray, y_tr: np.ndarray,
+                       grid: dict = DT_GRID,
+                       inner_cv: int = DT_GRID_INNER_CV,
+                       random_state: int = 42
+                       ) -> DecisionTreeClassifier:
+    """
+    Fit a Decision Tree with hyperparameters tuned via GridSearchCV (inner
+    CV on the training fold only -- no test-set leakage).
+    """
+    base = DecisionTreeClassifier(random_state=random_state)
+    gs = GridSearchCV(base, param_grid=grid, cv=inner_cv,
+                      scoring="accuracy", n_jobs=-1, refit=True)
+    gs.fit(X_tr, y_tr)
+    return gs.best_estimator_
+
+
+def crossval_ui_dt(data_pca: list, labels: list, users: list,
+                    folds: list,
+                    evr_list: list | None = None,
+                    tag: str = "",
+                    feature_mask: list | None = None
+                    ) -> tuple[float, float, list, np.ndarray]:
+    X         = build_feature_dataset(data_pca, evr_list, feature_mask)
+    y         = np.array(labels)
+    fold_accs = []
+    correct: dict = {}
+    for fold_num, (tr, te) in enumerate(folds):
+        clf = _dt_fit_with_grid(X[tr], y[tr])
+        preds = clf.predict(X[te])
+        acc   = float(np.mean(preds == y[te]))
+        fold_accs.append(acc)
+        for idx, p in zip(te, preds.tolist()):
+            correct[idx] = int(p == labels[idx])
+        u = sorted(set(users))[fold_num]
+        print(f"    DT{tag}   (UI) - User {u} -> acc = {acc:.3f}")
+    gu = _aggregate_gu_accuracy(correct, labels, users)
+    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs, gu
+
+
+def crossval_ud_dt(data_pca: list, labels: list, users: list,
+                    folds: list,
+                    evr_list: list | None = None,
+                    tag: str = "",
+                    feature_mask: list | None = None
+                    ) -> tuple[float, float, list, np.ndarray]:
+    X         = build_feature_dataset(data_pca, evr_list, feature_mask)
+    y         = np.array(labels)
+    fold_accs = []
+    correct: dict = {}
+    for fold_num, (tr, te, _te_users) in enumerate(folds):
+        clf = _dt_fit_with_grid(X[tr], y[tr])
+        preds = clf.predict(X[te])
+        acc   = float(np.mean(preds == y[te]))
+        fold_accs.append(acc)
+        for idx, p in zip(te, preds.tolist()):
+            correct[idx] = int(p == labels[idx])
+        print(f"    DT{tag}   (UD) - Fold {fold_num} -> acc = {acc:.3f}")
+    gu = _aggregate_gu_accuracy(correct, labels, users)
+    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs, gu
+
+
+# -- SVM (RBF kernel) with GridSearchCV ---------------------------------------
+# Reference classifier in feature-based gesture recognition.
+# References:
+#   Cortes, C., & Vapnik, V. (1995). Support-vector networks. Mach. Learn.,
+#     20, 273-297.
+#   Schoelkopf, B., & Smola, A. (2002). Learning with kernels. MIT Press.
+# Gesture recognition uses:
+#   Mitra, S., & Acharya, T. (2007). Gesture recognition: A survey.
+#     IEEE Trans. SMC-C, 37 (3), 311-324.  -- §5.4 reviews SVM-based gesture
+#     recognition.
+#   Wu, Y., & Huang, T. S. (1999). Vision-based gesture recognition: A
+#     review. Gesture Workshop, LNAI 1739, 103-115.
+#   Bhattacharya, S., Czejdo, B., & Perez, N. (2014). Gesture classification
+#     with machine learning using Kinect sensor data. ICETET'14.
+# Note on scaling: SVM is sensitive to feature scales. Our features are
+# derived from per-gesture standardised signals; in conditions (b) and (c)
+# the input statistics are already comparable. Condition (a) is included
+# to empirically expose SVM's sensitivity to unscaled inputs.
+
+def _svm_fit_with_grid(X_tr: np.ndarray, y_tr: np.ndarray,
+                        grid: dict = SVM_GRID,
+                        inner_cv: int = SVM_GRID_INNER_CV,
+                        random_state: int = 42
+                        ) -> SVC:
+    """
+    Fit an SVC(kernel='rbf') with hyperparameters tuned via GridSearchCV
+    (inner CV on the training fold only -- no test-set leakage).
+    """
+    base = SVC(kernel="rbf", random_state=random_state)
+    gs = GridSearchCV(base, param_grid=grid, cv=inner_cv,
+                      scoring="accuracy", n_jobs=-1, refit=True)
+    gs.fit(X_tr, y_tr)
+    return gs.best_estimator_
+
+
+def crossval_ui_svm(data_pca: list, labels: list, users: list,
+                     folds: list,
+                     evr_list: list | None = None,
+                     tag: str = "",
+                     feature_mask: list | None = None
+                     ) -> tuple[float, float, list, np.ndarray]:
+    X         = build_feature_dataset(data_pca, evr_list, feature_mask)
+    y         = np.array(labels)
+    fold_accs = []
+    correct: dict = {}
+    for fold_num, (tr, te) in enumerate(folds):
+        clf = _svm_fit_with_grid(X[tr], y[tr])
+        preds = clf.predict(X[te])
+        acc   = float(np.mean(preds == y[te]))
+        fold_accs.append(acc)
+        for idx, p in zip(te, preds.tolist()):
+            correct[idx] = int(p == labels[idx])
+        u = sorted(set(users))[fold_num]
+        print(f"    SVM{tag}  (UI) - User {u} -> acc = {acc:.3f}")
+    gu = _aggregate_gu_accuracy(correct, labels, users)
+    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs, gu
+
+
+def crossval_ud_svm(data_pca: list, labels: list, users: list,
+                     folds: list,
+                     evr_list: list | None = None,
+                     tag: str = "",
+                     feature_mask: list | None = None
+                     ) -> tuple[float, float, list, np.ndarray]:
+    X         = build_feature_dataset(data_pca, evr_list, feature_mask)
+    y         = np.array(labels)
+    fold_accs = []
+    correct: dict = {}
+    for fold_num, (tr, te, _te_users) in enumerate(folds):
+        clf = _svm_fit_with_grid(X[tr], y[tr])
+        preds = clf.predict(X[te])
+        acc   = float(np.mean(preds == y[te]))
+        fold_accs.append(acc)
+        for idx, p in zip(te, preds.tolist()):
+            correct[idx] = int(p == labels[idx])
+        print(f"    SVM{tag}  (UD) - Fold {fold_num} -> acc = {acc:.3f}")
+    gu = _aggregate_gu_accuracy(correct, labels, users)
+    return float(np.mean(fold_accs)), float(np.std(fold_accs)), fold_accs, gu
+
+
 # -- $1 Recognizer (Kratz & Rohs, 2010) with cached templates -----------------
 
 def _dollar_predict_one(cand_pre: np.ndarray,
@@ -1389,7 +1641,7 @@ def run_ablation_study(data_raw: list, data_std: list,
     folds_ui = _ui_fold_indices(users)
 
     rows = []
-    methods   = ["Edit Distance", "DTW", "RF", "$1"]
+    methods   = ["Edit Distance", "DTW", "DT", "RF", "SVM", "$1"]
     cond_data = {
         "(a) No preprocessing" : (data_raw,      None),
         "(b) Standardisation"  : (data_std,       None),
@@ -1411,9 +1663,15 @@ def run_ablation_study(data_raw: list, data_std: list,
     m, s, f, gu = crossval_ui_dtw(data_raw, labels, users, folds_ui,
                                     knn_k=knn_k)
     _record("(a) No preprocessing", "DTW", m, s, f, gu)
+    m, s, f, gu = crossval_ui_dt(data_raw, labels, users, folds_ui,
+                                   evr_list=None, tag=" [no EVR]")
+    _record("(a) No preprocessing", "DT", m, s, f, gu)
     m, s, f, gu = crossval_ui_rf(data_raw, labels, users, folds_ui,
                                    evr_list=None, tag=" [no EVR]")
     _record("(a) No preprocessing", "RF", m, s, f, gu)
+    m, s, f, gu = crossval_ui_svm(data_raw, labels, users, folds_ui,
+                                    evr_list=None, tag=" [no EVR]")
+    _record("(a) No preprocessing", "SVM", m, s, f, gu)
     m, s, f, gu = crossval_ui_dollar(data_raw, labels, users, folds_ui)
     _record("(a) No preprocessing", "$1", m, s, f, gu)
 
@@ -1424,9 +1682,15 @@ def run_ablation_study(data_raw: list, data_std: list,
     m, s, f, gu = crossval_ui_dtw(data_std, labels, users, folds_ui,
                                     knn_k=knn_k)
     _record("(b) Standardisation", "DTW", m, s, f, gu)
+    m, s, f, gu = crossval_ui_dt(data_std, labels, users, folds_ui,
+                                   evr_list=None, tag=" [no EVR]")
+    _record("(b) Standardisation", "DT", m, s, f, gu)
     m, s, f, gu = crossval_ui_rf(data_std, labels, users, folds_ui,
                                    evr_list=None, tag=" [no EVR]")
     _record("(b) Standardisation", "RF", m, s, f, gu)
+    m, s, f, gu = crossval_ui_svm(data_std, labels, users, folds_ui,
+                                    evr_list=None, tag=" [no EVR]")
+    _record("(b) Standardisation", "SVM", m, s, f, gu)
     m, s, f, gu = crossval_ui_dollar(data_std, labels, users, folds_ui)
     _record("(b) Standardisation", "$1", m, s, f, gu)
 
@@ -1437,10 +1701,18 @@ def run_ablation_study(data_raw: list, data_std: list,
     m, s, f, gu = crossval_ui_dtw(data_denoised, labels, users, folds_ui,
                                     knn_k=knn_k)
     _record("(c) Std + PCA denoise", "DTW", m, s, f, gu)
+    m, s, f, gu = crossval_ui_dt(data_denoised, labels, users, folds_ui,
+                                   evr_list=evr_list, tag=" [+EVR]")
+    _record("(c) Std + PCA denoise", "DT", m, s, f, gu,
+            note="3 PCA EVR values added to DT feature vector")
     m, s, f, gu = crossval_ui_rf(data_denoised, labels, users, folds_ui,
                                    evr_list=evr_list, tag=" [+EVR]")
     _record("(c) Std + PCA denoise", "RF", m, s, f, gu,
             note="3 PCA EVR values added to RF feature vector")
+    m, s, f, gu = crossval_ui_svm(data_denoised, labels, users, folds_ui,
+                                    evr_list=evr_list, tag=" [+EVR]")
+    _record("(c) Std + PCA denoise", "SVM", m, s, f, gu,
+            note="3 PCA EVR values added to SVM feature vector")
     m, s, f, gu = crossval_ui_dollar(data_denoised, labels, users, folds_ui)
     _record("(c) Std + PCA denoise", "$1", m, s, f, gu)
 
@@ -1455,7 +1727,7 @@ def run_ablation_study(data_raw: list, data_std: list,
         best_mean, best_std, best_folds, best_gu = results[method][best_cond]
         best_data, best_evr = cond_data[best_cond]
 
-        if method == "RF" and best_cond != "(c) Std + PCA denoise":
+        if method in ("RF", "DT", "SVM") and best_cond != "(c) Std + PCA denoise":
             best_evr = None
 
         best_preprocessing[method] = {
@@ -1477,8 +1749,9 @@ def run_ablation_study(data_raw: list, data_std: list,
                            values="Result", aggfunc="first")
     print(f"\n  Ablation summary - Domain {domain}:")
     print(pivot.to_string())
-    df.to_csv(f"ablation_domain{domain}.csv", index=False)
-    print(f"  Saved -> ablation_domain{domain}.csv")
+    csv_path = os.path.join(DIR_TBL_ABLATION, f"ablation_domain{domain}.csv")
+    df.to_csv(csv_path, index=False)
+    print(f"  Saved -> {csv_path}")
 
     return df, best_preprocessing
 
@@ -1597,7 +1870,9 @@ def generate_pvalue_table(methods_gu: dict,
     if all_sig and len(pairs) > 0:
         print(f"  -> {best} is significantly better than ALL others (BH)")
 
-    csv_path = f"p_values_domain{domain}_user_independent.csv"
+    csv_path = os.path.join(
+        DIR_TBL_STATS,
+        f"p_values_domain{domain}_user_independent.csv")
     df_raw.to_csv(csv_path)
     print(f"  Saved -> {csv_path}")
 
@@ -1617,7 +1892,8 @@ def generate_pvalue_table(methods_gu: dict,
     ax.set_title(f"Wilcoxon p-values (n=100) - Domain {domain}")
     plt.colorbar(im, ax=ax, label="p-value")
     plt.tight_layout()
-    heatmap_path = f"p_values_heatmap_domain{domain}.png"
+    heatmap_path = os.path.join(
+        DIR_FIG_STATS, f"p_values_heatmap_domain{domain}.png")
     plt.savefig(heatmap_path, dpi=150)
     print(f"  Saved -> {heatmap_path}")
     plt.show()
@@ -1642,7 +1918,9 @@ def _plot_cm(y_true: list, y_pred: list,
     disp.plot(cmap=plt.cm.Blues)
     plt.title(title)
     plt.tight_layout()
-    plt.savefig(f"confusion_{_safe_filename(title)}.png", dpi=150)
+    out_path = os.path.join(DIR_FIG_CM,
+                            f"confusion_{_safe_filename(title)}.png")
+    plt.savefig(out_path, dpi=150)
     plt.show()
 
 
@@ -1700,6 +1978,34 @@ def compute_cm_rf(data_denoised: list, labels: list, users: list,
     _plot_cm(y_true, y_pred, sorted(set(labels)), title)
 
 
+def compute_cm_dt(data_denoised: list, labels: list, users: list,
+                   folds: list,
+                   evr_list: list | None = None,
+                   title: str = "Confusion matrix - DT") -> None:
+    X      = build_feature_dataset(data_denoised, evr_list)
+    y      = np.array(labels)
+    y_true, y_pred = [], []
+    for tr, te in folds:
+        clf = _dt_fit_with_grid(X[tr], y[tr])
+        y_true.extend(y[te].tolist())
+        y_pred.extend(clf.predict(X[te]).tolist())
+    _plot_cm(y_true, y_pred, sorted(set(labels)), title)
+
+
+def compute_cm_svm(data_denoised: list, labels: list, users: list,
+                    folds: list,
+                    evr_list: list | None = None,
+                    title: str = "Confusion matrix - SVM") -> None:
+    X      = build_feature_dataset(data_denoised, evr_list)
+    y      = np.array(labels)
+    y_true, y_pred = [], []
+    for tr, te in folds:
+        clf = _svm_fit_with_grid(X[tr], y[tr])
+        y_true.extend(y[te].tolist())
+        y_pred.extend(clf.predict(X[te]).tolist())
+    _plot_cm(y_true, y_pred, sorted(set(labels)), title)
+
+
 def compute_cm_dollar(data: list, labels: list, users: list,
                        folds: list,
                        title: str = "Confusion matrix - $1") -> None:
@@ -1731,9 +2037,15 @@ def draw_best_model_cm(best_name: str,
     elif best_name == "DTW":
         compute_cm_dtw(data_best, labels, users, folds_ui,
                        title=f"DTW {tag}")
+    elif best_name == "DT":
+        compute_cm_dt(data_best, labels, users, folds_ui, evr_best,
+                       title=f"DT {tag}")
     elif best_name == "RF":
         compute_cm_rf(data_best, labels, users, folds_ui, evr_best,
                       title=f"RF {tag}")
+    elif best_name == "SVM":
+        compute_cm_svm(data_best, labels, users, folds_ui, evr_best,
+                        title=f"SVM {tag}")
     elif best_name == "$1":
         compute_cm_dollar(data_best, labels, users, folds_ui,
                           title=f"$1 {tag}")
@@ -1745,7 +2057,9 @@ def draw_best_model_cm(best_name: str,
 
 def save_fold_results(fold_accs: list, method: str,
                        setting: str, domain: int) -> None:
-    fname = f"results_domain{domain}_{setting}_{method}.csv"
+    fname = os.path.join(
+        DIR_TBL_FOLDS,
+        f"results_domain{domain}_{setting}_{method}.csv")
     pd.DataFrame({"accuracy": fold_accs}).to_csv(fname, index=False)
     print(f"  Saved -> {fname}")
 
@@ -1778,13 +2092,17 @@ if __name__ == "__main__":
     # -- 2. Exploratory visualisation -------------------------------------
     print("\n=== Exploratory Visualisation ===")
     plot_sequence_lengths(data1, labels1, "Domain 1",
-                          save_path="d1_sequence_lengths.png")
+                          save_path=os.path.join(DIR_FIG_EXPLORE,
+                                                 "d1_sequence_lengths.png"))
     plot_gesture_samples(data1, labels1, users1, "Domain 1",
-                         save_path="d1_gesture_samples.png")
+                         save_path=os.path.join(DIR_FIG_EXPLORE,
+                                                "d1_gesture_samples.png"))
     plot_sequence_lengths(data4, labels4, "Domain 4",
-                          save_path="d4_sequence_lengths.png")
+                          save_path=os.path.join(DIR_FIG_EXPLORE,
+                                                 "d4_sequence_lengths.png"))
     plot_gesture_samples(data4, labels4, users4, "Domain 4",
-                         save_path="d4_gesture_samples.png")
+                         save_path=os.path.join(DIR_FIG_EXPLORE,
+                                                "d4_gesture_samples.png"))
 
     # -- 3. Standardisation -----------------------------------------------
     print("\n=== Standardisation ===")
@@ -1795,9 +2113,11 @@ if __name__ == "__main__":
     # -- 4. PCA denoising -------------------------------------------------
     print("\n=== Per-gesture PCA denoising analysis ===")
     summarise_pca_denoising(data1_std, "Domain 1",
-                             save_path="d1_pca_denoise.png")
+                             save_path=os.path.join(DIR_FIG_PCA,
+                                                    "d1_pca_denoise.png"))
     summarise_pca_denoising(data4_std, "Domain 4",
-                             save_path="d4_pca_denoise.png")
+                             save_path=os.path.join(DIR_FIG_PCA,
+                                                    "d4_pca_denoise.png"))
 
     print("\n=== Applying PCA denoising (3D -> 2D -> 3D) ===")
     data1_denoised, evr1 = apply_pca_denoising(data1_std, n_keep=PCA_N_KEEP)
@@ -1814,46 +2134,58 @@ if __name__ == "__main__":
     print(f"  Domain 4 - UI: {len(folds_ui_4)} | UD: {len(folds_ud_4)}")
 
     # -- 6. Validation curves for K (empirical iterative selection) -------
+    # K_CLUSTERS validation curve: the best K found below IS used in the rest
+    # of the pipeline (passed to run_ablation_study / Edit-Distance evals).
+    # kNN K validation curve: the curve is computed and saved for transparency
+    # (informative for the report) but the pipeline FORCES k=1 in every
+    # downstream evaluation. Justification: 1-NN is the canonical gesture
+    # recognition baseline (Wobbrock et al. 2007; Mezari & Maglogiannis 2018;
+    # Mitra & Acharya 2007). See module docstring decision #8.
     print("\n=== Validation curves - hyperparameter K ===")
     print("  Domain 1 - K_CLUSTERS scan (Edit Distance UI):")
     best_k_clusters_d1 = validation_curve_kclusters(
         data1_std, labels1, users1, folds_ui_1,
-        domain=1, save_path="d1_vc_kclusters.png")
-    print("  Domain 1 - kNN K scan (DTW UI):")
-    best_knn_k_d1 = validation_curve_knn(
+        domain=1,
+        save_path=os.path.join(DIR_FIG_VC, "d1_vc_kclusters.png"))
+    print("  Domain 1 - kNN K scan (DTW UI) [informative only, k=1 forced]:")
+    _vc_best_knn_d1 = validation_curve_knn(
         data1_std, labels1, users1, folds_ui_1,
-        method="dtw", domain=1, save_path="d1_vc_knn.png")
+        method="dtw", domain=1,
+        save_path=os.path.join(DIR_FIG_VC, "d1_vc_knn.png"))
     print(f"  Domain 1 selected (on standardised data): "
-          f"K_CLUSTERS={best_k_clusters_d1}, KNN_K={best_knn_k_d1}")
+          f"K_CLUSTERS={best_k_clusters_d1}, "
+          f"KNN_K=1 (forced; curve optimum was k={_vc_best_knn_d1})")
 
     print("\n  Domain 4 - K_CLUSTERS scan (Edit Distance UI):")
     best_k_clusters_d4 = validation_curve_kclusters(
         data4_std, labels4, users4, folds_ui_4,
-        domain=4, save_path="d4_vc_kclusters.png")
-    print("  Domain 4 - kNN K scan (DTW UI):")
-    best_knn_k_d4 = validation_curve_knn(
+        domain=4,
+        save_path=os.path.join(DIR_FIG_VC, "d4_vc_kclusters.png"))
+    print("  Domain 4 - kNN K scan (DTW UI) [informative only, k=1 forced]:")
+    _vc_best_knn_d4 = validation_curve_knn(
         data4_std, labels4, users4, folds_ui_4,
-        method="dtw", domain=4, save_path="d4_vc_knn.png")
+        method="dtw", domain=4,
+        save_path=os.path.join(DIR_FIG_VC, "d4_vc_knn.png"))
     print(f"  Domain 4 selected (on standardised data): "
-          f"K_CLUSTERS={best_k_clusters_d4}, KNN_K={best_knn_k_d4}")
-
-    # Hyperparameters selected per domain via empirical validation curves above.
-    # K_CLUSTERS and KNN_K globals are used as defaults only (validation curve scan).
+          f"K_CLUSTERS={best_k_clusters_d4}, "
+          f"KNN_K=1 (forced; curve optimum was k={_vc_best_knn_d4})")
 
     # -- 7. Ablation study ------------------------------------------------
+    # K_CLUSTERS = best from validation curve (per domain).
+    # KNN_K = 1 forced (see decision #8 in the module docstring).
     print("\n=== Ablation Study - Domain 1 ===")
     _, best_prep_d1 = run_ablation_study(
         data1, data1_std, data1_denoised, evr1,
         labels1, users1, domain=1,
         k_clusters=best_k_clusters_d1,
-        knn_k=best_knn_k_d1)
+        knn_k=1)
 
     print("\n=== Ablation Study - Domain 4 ===")
     _, best_prep_d4 = run_ablation_study(
         data4, data4_std, data4_denoised, evr4,
         labels4, users4, domain=4,
         k_clusters=best_k_clusters_d4,
-        knn_k=best_knn_k_d4)
+        knn_k=1)
 
     def _ud_data_for(best_entry: dict,
                      raw: list, std: list, denoised: list,
@@ -1872,12 +2204,12 @@ if __name__ == "__main__":
                                           data1, data1_std, data1_denoised, evr1)
     kept_features_d1 = analyse_rf_feature_importances(
         rf_d1_data, labels1, rf_d1_evr, domain=1,
-        save_path="d1_rf_feature_importance.png")
+        save_path=os.path.join(DIR_FIG_FI, "d1_rf_feature_importance.png"))
     rf_d4_data, rf_d4_evr = _ud_data_for(best_prep_d4["RF"],
                                           data4, data4_std, data4_denoised, evr4)
     kept_features_d4 = analyse_rf_feature_importances(
         rf_d4_data, labels4, rf_d4_evr, domain=4,
-        save_path="d4_rf_feature_importance.png")
+        save_path=os.path.join(DIR_FIG_FI, "d4_rf_feature_importance.png"))
 
     if len(kept_features_d1) == 0:
         print("  [WARNING] No features passed importance threshold; "
@@ -1890,29 +2222,37 @@ if __name__ == "__main__":
 
     # -- 9. Domain 1 - UI (reuse ablation fold accuracies) ----------------
     print("\n=== Main Evaluation - Domain 1 - User-Independent ===")
-    for method in ["Edit Distance", "DTW", "RF", "$1"]:
+    for method in ["Edit Distance", "DTW", "DT", "RF", "SVM", "$1"]:
         entry = best_prep_d1[method]
         print(f"  {method}: best condition = {entry['condition']}  "
               f"(mean = {entry['mean']:.3f} +/- {entry['std']:.3f})")
 
     folds_ed1     = best_prep_d1["Edit Distance"]["folds"]
     folds_dtw1    = best_prep_d1["DTW"]["folds"]
+    folds_dt1     = best_prep_d1["DT"]["folds"]
     folds_rf1     = best_prep_d1["RF"]["folds"]
+    folds_svm1    = best_prep_d1["SVM"]["folds"]
     folds_dollar1 = best_prep_d1["$1"]["folds"]
 
     gu_ed1     = best_prep_d1["Edit Distance"]["gu"]
     gu_dtw1    = best_prep_d1["DTW"]["gu"]
+    gu_dt1     = best_prep_d1["DT"]["gu"]
     gu_rf1     = best_prep_d1["RF"]["gu"]
+    gu_svm1    = best_prep_d1["SVM"]["gu"]
     gu_dollar1 = best_prep_d1["$1"]["gu"]
 
     mean_ed1, std_ed1         = best_prep_d1["Edit Distance"]["mean"], best_prep_d1["Edit Distance"]["std"]
     mean_dtw1, std_dtw1       = best_prep_d1["DTW"]["mean"],           best_prep_d1["DTW"]["std"]
+    mean_dt1, std_dt1         = best_prep_d1["DT"]["mean"],            best_prep_d1["DT"]["std"]
     mean_rf1, std_rf1         = best_prep_d1["RF"]["mean"],            best_prep_d1["RF"]["std"]
+    mean_svm1, std_svm1       = best_prep_d1["SVM"]["mean"],           best_prep_d1["SVM"]["std"]
     mean_dollar1, std_dollar1 = best_prep_d1["$1"]["mean"],            best_prep_d1["$1"]["std"]
 
     save_fold_results(folds_ed1,     "edit",   "user_independent", 1)
     save_fold_results(folds_dtw1,    "dtw",    "user_independent", 1)
+    save_fold_results(folds_dt1,     "dt",     "user_independent", 1)
     save_fold_results(folds_rf1,     "rf",     "user_independent", 1)
+    save_fold_results(folds_svm1,    "svm",    "user_independent", 1)
     save_fold_results(folds_dollar1, "dollar", "user_independent", 1)
 
     # -- 10. Domain 1 - UD ------------------------------------------------
@@ -1921,7 +2261,11 @@ if __name__ == "__main__":
                                                data1, data1_std, data1_denoised, evr1)
     d1_dtw_data,   _            = _ud_data_for(best_prep_d1["DTW"],
                                                data1, data1_std, data1_denoised, evr1)
+    d1_dt_data,    d1_dt_evr   = _ud_data_for(best_prep_d1["DT"],
+                                               data1, data1_std, data1_denoised, evr1)
     d1_rf_data,    d1_rf_evr   = _ud_data_for(best_prep_d1["RF"],
+                                               data1, data1_std, data1_denoised, evr1)
+    d1_svm_data,   d1_svm_evr  = _ud_data_for(best_prep_d1["SVM"],
                                                data1, data1_std, data1_denoised, evr1)
     d1_dollar_data, _           = _ud_data_for(best_prep_d1["$1"],
                                                data1, data1_std, data1_denoised, evr1)
@@ -1936,12 +2280,24 @@ if __name__ == "__main__":
         d1_dtw_data, labels1, users1, folds_ud_1)
     save_fold_results(folds_dtw1_ud, "dtw", "user_dependent", 1)
 
+    print(f"\n  Decision Tree  [{best_prep_d1['DT']['condition']}]:")
+    mean_dt1_ud, std_dt1_ud, folds_dt1_ud, _ = crossval_ud_dt(
+        d1_dt_data, labels1, users1, folds_ud_1,
+        evr_list=d1_dt_evr, tag=" [adaptive]")
+    save_fold_results(folds_dt1_ud, "dt", "user_dependent", 1)
+
     print(f"\n  Random Forest  [{best_prep_d1['RF']['condition']}]:")
     mean_rf1_ud, std_rf1_ud, folds_rf1_ud, _ = crossval_ud_rf(
         d1_rf_data, labels1, users1, folds_ud_1,
         evr_list=d1_rf_evr, tag=" [adaptive]",
         feature_mask=kept_features_d1)
     save_fold_results(folds_rf1_ud, "rf", "user_dependent", 1)
+
+    print(f"\n  SVM (RBF)      [{best_prep_d1['SVM']['condition']}]:")
+    mean_svm1_ud, std_svm1_ud, folds_svm1_ud, _ = crossval_ud_svm(
+        d1_svm_data, labels1, users1, folds_ud_1,
+        evr_list=d1_svm_evr, tag=" [adaptive]")
+    save_fold_results(folds_svm1_ud, "svm", "user_dependent", 1)
 
     print(f"\n  $1 Recognizer  [{best_prep_d1['$1']['condition']}]:")
     mean_dollar1_ud, std_dollar1_ud, folds_dollar1_ud, _ = crossval_ud_dollar(
@@ -1953,14 +2309,17 @@ if __name__ == "__main__":
     results_gu_d1 = {
         "Edit Distance": gu_ed1,
         "DTW"          : gu_dtw1,
+        "DT"           : gu_dt1,
         "RF"           : gu_rf1,
+        "SVM"          : gu_svm1,
         "$1"           : gu_dollar1,
     }
     generate_pvalue_table(results_gu_d1, domain=1)
 
     # -- 12. Confusion matrix - best model - Domain 1 ---------------------
     all_ui_d1 = {"Edit Distance": mean_ed1, "DTW": mean_dtw1,
-                 "RF": mean_rf1, "$1": mean_dollar1}
+                 "DT": mean_dt1, "RF": mean_rf1,
+                 "SVM": mean_svm1, "$1": mean_dollar1}
     best_name_d1  = max(all_ui_d1, key=all_ui_d1.get)
     best_entry_d1 = best_prep_d1[best_name_d1]
     print(f"\n  Best model - Domain 1 (UI): {best_name_d1} "
@@ -1977,29 +2336,37 @@ if __name__ == "__main__":
 
     # -- 13. Domain 4 - UI ------------------------------------------------
     print("\n=== Main Evaluation - Domain 4 - User-Independent ===")
-    for method in ["Edit Distance", "DTW", "RF", "$1"]:
+    for method in ["Edit Distance", "DTW", "DT", "RF", "SVM", "$1"]:
         entry = best_prep_d4[method]
         print(f"  {method}: best condition = {entry['condition']}  "
               f"(mean = {entry['mean']:.3f} +/- {entry['std']:.3f})")
 
     folds_ed4     = best_prep_d4["Edit Distance"]["folds"]
     folds_dtw4    = best_prep_d4["DTW"]["folds"]
+    folds_dt4     = best_prep_d4["DT"]["folds"]
     folds_rf4     = best_prep_d4["RF"]["folds"]
+    folds_svm4    = best_prep_d4["SVM"]["folds"]
     folds_dollar4 = best_prep_d4["$1"]["folds"]
 
     gu_ed4     = best_prep_d4["Edit Distance"]["gu"]
     gu_dtw4    = best_prep_d4["DTW"]["gu"]
+    gu_dt4     = best_prep_d4["DT"]["gu"]
     gu_rf4     = best_prep_d4["RF"]["gu"]
+    gu_svm4    = best_prep_d4["SVM"]["gu"]
     gu_dollar4 = best_prep_d4["$1"]["gu"]
 
     mean_ed4, std_ed4         = best_prep_d4["Edit Distance"]["mean"], best_prep_d4["Edit Distance"]["std"]
     mean_dtw4, std_dtw4       = best_prep_d4["DTW"]["mean"],           best_prep_d4["DTW"]["std"]
+    mean_dt4, std_dt4         = best_prep_d4["DT"]["mean"],            best_prep_d4["DT"]["std"]
     mean_rf4, std_rf4         = best_prep_d4["RF"]["mean"],            best_prep_d4["RF"]["std"]
+    mean_svm4, std_svm4       = best_prep_d4["SVM"]["mean"],           best_prep_d4["SVM"]["std"]
     mean_dollar4, std_dollar4 = best_prep_d4["$1"]["mean"],            best_prep_d4["$1"]["std"]
 
     save_fold_results(folds_ed4,     "edit",   "user_independent", 4)
     save_fold_results(folds_dtw4,    "dtw",    "user_independent", 4)
+    save_fold_results(folds_dt4,     "dt",     "user_independent", 4)
     save_fold_results(folds_rf4,     "rf",     "user_independent", 4)
+    save_fold_results(folds_svm4,    "svm",    "user_independent", 4)
     save_fold_results(folds_dollar4, "dollar", "user_independent", 4)
 
     # -- 14. Domain 4 - UD ------------------------------------------------
@@ -2008,7 +2375,11 @@ if __name__ == "__main__":
                                                data4, data4_std, data4_denoised, evr4)
     d4_dtw_data,   _            = _ud_data_for(best_prep_d4["DTW"],
                                                data4, data4_std, data4_denoised, evr4)
+    d4_dt_data,    d4_dt_evr   = _ud_data_for(best_prep_d4["DT"],
+                                               data4, data4_std, data4_denoised, evr4)
     d4_rf_data,    d4_rf_evr   = _ud_data_for(best_prep_d4["RF"],
+                                               data4, data4_std, data4_denoised, evr4)
+    d4_svm_data,   d4_svm_evr  = _ud_data_for(best_prep_d4["SVM"],
                                                data4, data4_std, data4_denoised, evr4)
     d4_dollar_data, _           = _ud_data_for(best_prep_d4["$1"],
                                                data4, data4_std, data4_denoised, evr4)
@@ -2023,12 +2394,24 @@ if __name__ == "__main__":
         d4_dtw_data, labels4, users4, folds_ud_4)
     save_fold_results(folds_dtw4_ud, "dtw", "user_dependent", 4)
 
+    print(f"\n  Decision Tree  [{best_prep_d4['DT']['condition']}]:")
+    mean_dt4_ud, std_dt4_ud, folds_dt4_ud, _ = crossval_ud_dt(
+        d4_dt_data, labels4, users4, folds_ud_4,
+        evr_list=d4_dt_evr, tag=" [adaptive]")
+    save_fold_results(folds_dt4_ud, "dt", "user_dependent", 4)
+
     print(f"\n  Random Forest  [{best_prep_d4['RF']['condition']}]:")
     mean_rf4_ud, std_rf4_ud, folds_rf4_ud, _ = crossval_ud_rf(
         d4_rf_data, labels4, users4, folds_ud_4,
         evr_list=d4_rf_evr, tag=" [adaptive]",
         feature_mask=kept_features_d4)
     save_fold_results(folds_rf4_ud, "rf", "user_dependent", 4)
+
+    print(f"\n  SVM (RBF)      [{best_prep_d4['SVM']['condition']}]:")
+    mean_svm4_ud, std_svm4_ud, folds_svm4_ud, _ = crossval_ud_svm(
+        d4_svm_data, labels4, users4, folds_ud_4,
+        evr_list=d4_svm_evr, tag=" [adaptive]")
+    save_fold_results(folds_svm4_ud, "svm", "user_dependent", 4)
 
     print(f"\n  $1 Recognizer  [{best_prep_d4['$1']['condition']}]:")
     mean_dollar4_ud, std_dollar4_ud, folds_dollar4_ud, _ = crossval_ud_dollar(
@@ -2040,14 +2423,17 @@ if __name__ == "__main__":
     results_gu_d4 = {
         "Edit Distance": gu_ed4,
         "DTW"          : gu_dtw4,
+        "DT"           : gu_dt4,
         "RF"           : gu_rf4,
+        "SVM"          : gu_svm4,
         "$1"           : gu_dollar4,
     }
     generate_pvalue_table(results_gu_d4, domain=4)
 
     # -- 16. Confusion matrix - best model - Domain 4 ---------------------
     all_ui_d4 = {"Edit Distance": mean_ed4, "DTW": mean_dtw4,
-                 "RF": mean_rf4, "$1": mean_dollar4}
+                 "DT": mean_dt4, "RF": mean_rf4,
+                 "SVM": mean_svm4, "$1": mean_dollar4}
     best_name_d4  = max(all_ui_d4, key=all_ui_d4.get)
     best_entry_d4 = best_prep_d4[best_name_d4]
     print(f"\n  Best model - Domain 4 (UI): {best_name_d4} "
@@ -2071,16 +2457,24 @@ if __name__ == "__main__":
                                       best_prep_d1["Edit Distance"]["condition"]),
             ("DTW",           "UI"): (mean_dtw1,       std_dtw1,
                                       best_prep_d1["DTW"]["condition"]),
+            ("DT",            "UI"): (mean_dt1,        std_dt1,
+                                      best_prep_d1["DT"]["condition"]),
             ("RF",            "UI"): (mean_rf1,        std_rf1,
                                       best_prep_d1["RF"]["condition"]),
+            ("SVM",           "UI"): (mean_svm1,       std_svm1,
+                                      best_prep_d1["SVM"]["condition"]),
             ("$1",            "UI"): (mean_dollar1,    std_dollar1,
                                       best_prep_d1["$1"]["condition"]),
             ("Edit Distance", "UD"): (mean_ed1_ud,     std_ed1_ud,
                                       best_prep_d1["Edit Distance"]["condition"]),
             ("DTW",           "UD"): (mean_dtw1_ud,    std_dtw1_ud,
                                       best_prep_d1["DTW"]["condition"]),
+            ("DT",            "UD"): (mean_dt1_ud,     std_dt1_ud,
+                                      best_prep_d1["DT"]["condition"]),
             ("RF",            "UD"): (mean_rf1_ud,     std_rf1_ud,
                                       best_prep_d1["RF"]["condition"]),
+            ("SVM",           "UD"): (mean_svm1_ud,    std_svm1_ud,
+                                      best_prep_d1["SVM"]["condition"]),
             ("$1",            "UD"): (mean_dollar1_ud, std_dollar1_ud,
                                       best_prep_d1["$1"]["condition"]),
         }, best_prep_d1),
@@ -2089,16 +2483,24 @@ if __name__ == "__main__":
                                       best_prep_d4["Edit Distance"]["condition"]),
             ("DTW",           "UI"): (mean_dtw4,       std_dtw4,
                                       best_prep_d4["DTW"]["condition"]),
+            ("DT",            "UI"): (mean_dt4,        std_dt4,
+                                      best_prep_d4["DT"]["condition"]),
             ("RF",            "UI"): (mean_rf4,        std_rf4,
                                       best_prep_d4["RF"]["condition"]),
+            ("SVM",           "UI"): (mean_svm4,       std_svm4,
+                                      best_prep_d4["SVM"]["condition"]),
             ("$1",            "UI"): (mean_dollar4,    std_dollar4,
                                       best_prep_d4["$1"]["condition"]),
             ("Edit Distance", "UD"): (mean_ed4_ud,     std_ed4_ud,
                                       best_prep_d4["Edit Distance"]["condition"]),
             ("DTW",           "UD"): (mean_dtw4_ud,    std_dtw4_ud,
                                       best_prep_d4["DTW"]["condition"]),
+            ("DT",            "UD"): (mean_dt4_ud,     std_dt4_ud,
+                                      best_prep_d4["DT"]["condition"]),
             ("RF",            "UD"): (mean_rf4_ud,     std_rf4_ud,
                                       best_prep_d4["RF"]["condition"]),
+            ("SVM",           "UD"): (mean_svm4_ud,    std_svm4_ud,
+                                      best_prep_d4["SVM"]["condition"]),
             ("$1",            "UD"): (mean_dollar4_ud, std_dollar4_ud,
                                       best_prep_d4["$1"]["condition"]),
         }, best_prep_d4),
@@ -2124,9 +2526,10 @@ if __name__ == "__main__":
     print("\n  Preprocessing selected per method:")
     for domain_id, bp in [(1, best_prep_d1), (4, best_prep_d4)]:
         print(f"\n  Domain {domain_id}:")
-        for method in ["Edit Distance", "DTW", "RF", "$1"]:
+        for method in ["Edit Distance", "DTW", "DT", "RF", "SVM", "$1"]:
             print(f"    {method:<16}: {bp[method]['condition']}")
 
-    df_summary.to_csv("summary_results.csv", index=False)
-    print("\n  Saved -> summary_results.csv")
+    summary_path = os.path.join(DIR_TBL_SUMMARY, "summary_results.csv")
+    df_summary.to_csv(summary_path, index=False)
+    print(f"\n  Saved -> {summary_path}")
     print("\nDone.")
