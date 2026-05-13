@@ -11,7 +11,8 @@ Resources/
 
 Archive/
 
-Outputs/
+Outputs/figures/
+Outputs/tables/
 
 # --- Environnements Virtuels (Python) ---
 .venv/

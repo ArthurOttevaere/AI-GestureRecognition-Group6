@@ -1,0 +1,827 @@
+\documentclass[11pt,a4paper]{article}
+
+% =========================================================================
+% MLSM2154 - Gesture Recognition Project (Group 6)
+% Internal results synthesis. The COMPLETE set of numbers produced by
+% CODE_IA.py, with interpretation, comments, and links to the literature.
+% So we never have to relaunch the code just to look up a number.
+%
+% NOT a final report for the professor (the 10-page IEEE report is
+% written separately). This file is for ourselves and our group.
+% =========================================================================
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\usepackage{framed}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{caption}
+
+\definecolor{whyboxbg}{RGB}{255,247,224}
+\definecolor{takeawaybg}{RGB}{224,243,255}
+\definecolor{rowgray}{RGB}{240,240,240}
+\definecolor{bestcell}{RGB}{210,238,210}
+
+% Why-boxes (literature / methodology rationale)
+\newenvironment{whybox}[1]{%
+    \definecolor{shadecolor}{named}{whyboxbg}%
+    \begin{shaded}\noindent\textbf{Pourquoi : #1}\par\vspace{0.2em}}
+    {\end{shaded}}
+
+% Takeaway boxes (key reading of a result)
+\newenvironment{takeaway}{%
+    \definecolor{shadecolor}{named}{takeawaybg}%
+    \begin{shaded}\noindent\textbf{À retenir.}\par\vspace{0.2em}}
+    {\end{shaded}}
+
+\titleformat{\section}
+    {\Large\bfseries\color{blue!40!black}}{\thesection.}{0.6em}{}
+\titleformat{\subsection}
+    {\large\bfseries\color{blue!30!black}}{\thesubsection.}{0.6em}{}
+
+\title{\textbf{Synthèse des résultats du pipeline de reconnaissance de gestes}\\
+\large MLSM2154 Groupe 6 --- document interne}
+\author{Andry Lenny \and El Mohcine Mohamed \and Ottevaere Arthur}
+\date{Mai 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Ce document présente l'\emph{intégralité des résultats numériques}
+produits par \texttt{CODE\_IA.py} sur les deux datasets de l'étude
+(\emph{Domain~1} : chiffres 0--9 tracés en 3D ; \emph{Domain~4} :
+formes volumétriques 3D, tous deux issus de \cite{huang2019gesture}).
+Il sert de référence interne pour le groupe : on doit pouvoir, sans
+relancer le code, retrouver une valeur, comprendre pourquoi elle est
+ce qu'elle est, et la relier à la littérature en reconnaissance de
+gestes. Le rapport final IEEE de 10 pages est rédigé séparément.
+\end{abstract}
+
+\tableofcontents
+\bigskip
+
+% =========================================================================
+\section{Vue d'ensemble du résultat final}
+
+Le tableau~\ref{tab:final-summary} résume les six méthodes sur les deux
+réglages d'évaluation (UI = user-independent, UD = user-dependent) pour
+les deux domaines. Le pré-traitement indiqué entre crochets est celui
+qui a été sélectionné automatiquement par l'\emph{ablation study}
+(Sec.~\ref{sec:ablation}).
+
+\begin{table}[h]
+\centering
+\caption{Accuracy moyenne $\pm$ écart-type sur 10 plis de CV. Cellules
+vertes = meilleur classifieur par (domaine, réglage). Préprocessing
+sélectionné en italique pour chaque méthode.}
+\label{tab:final-summary}
+\small
+\begin{tabular}{lcccccc}
+\toprule
+ & Edit Dist. & DTW & DT & RF & SVM & \$1 \\
+\midrule
+\multicolumn{7}{l}{\textbf{Domain 1} \textit{(b) Standardisation pour les 5 premières, (a) sans préproc. pour \$1}}\\
+\addlinespace[0.2em]
+UI & $0.864 \pm 0.135$ & $0.918 \pm 0.097$ & $0.836 \pm 0.075$ & $0.917 \pm 0.046$ & $0.902 \pm 0.033$ & \cellcolor{bestcell}$\mathbf{0.956 \pm 0.042}$ \\
+UD & $0.980 \pm 0.014$ & $0.988 \pm 0.010$ & $0.896 \pm 0.037$ & $0.952 \pm 0.022$ & $0.956 \pm 0.032$ & \cellcolor{bestcell}$\mathbf{0.998 \pm 0.004}$ \\
+\midrule
+\multicolumn{7}{l}{\textbf{Domain 4} \textit{(b) Standardisation pour les six}}\\
+\addlinespace[0.2em]
+UI & $0.857 \pm 0.068$ & $0.865 \pm 0.078$ & $0.815 \pm 0.053$ & \cellcolor{bestcell}$\mathbf{0.891 \pm 0.058}$ & $0.853 \pm 0.070$ & $0.867 \pm 0.075$ \\
+UD & $0.978 \pm 0.015$ & \cellcolor{bestcell}$\mathbf{0.987 \pm 0.020}$ & $0.889 \pm 0.032$ & $0.959 \pm 0.030$ & $0.954 \pm 0.024$ & $0.969 \pm 0.014$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{takeaway}
+\begin{itemize}[itemsep=0.15em,topsep=0.2em]
+\item \textbf{Domain~1 (chiffres en 3D)} : le \emph{\$1 Recognizer}
+      domine sur UI ($\mathbf{0.956}$) comme sur UD ($\mathbf{0.998}$).
+      Ce résultat est attendu : les chiffres sont quasi-planaires
+      (PC1+PC2 = 94.2\,\% de la variance), donc l'approche template-
+      matching avec rotation par axe indicatif est intrinsèquement
+      adaptée \cite{wobbrock2007dollar1, kratz2010dollar3}.
+\item \textbf{Domain~4 (formes volumétriques)} : le \emph{Random Forest}
+      gagne en UI ($\mathbf{0.891}$), tandis que le DTW domine en UD
+      ($\mathbf{0.987}$). Pas de méthode universellement meilleure : la
+      famille de gestes change la hiérarchie.
+\item \textbf{L'écart UI $\to$ UD est massif} pour toutes les méthodes
+      ($\geq 0.05$ point, jusqu'à $+0.13$ pour Edit Distance D4) :
+      connaître l'utilisateur fait gagner beaucoup, ce qui est attendu
+      \cite{huang2019gesture, mezari2018commodity}.
+\end{itemize}
+\end{takeaway}
+
+% =========================================================================
+\section{Données et exploration}
+
+\subsection{Volumétrie}
+\begin{itemize}[itemsep=0.15em,topsep=0.2em]
+\item \textbf{Domain~1} : 1000 séquences = 10 utilisateurs $\times$
+      10 gestes $\times$ 10 répétitions. Longueurs : min~31,
+      max~240, moyenne $85.1 \pm 26.5$.
+\item \textbf{Domain~4} : 1000 séquences = mêmes dimensions.
+      Longueurs : min~56, max~314, moyenne $139.6 \pm 43.7$.
+\item \textbf{Complétude} : 100 cellules (user, gesture) avec
+      exactement 10 répétitions dans les deux domaines.
+\end{itemize}
+
+\textbf{Note importante.} Les gestes de Domain~4 sont en moyenne
+\emph{1.6$\times$ plus longs} que ceux de Domain~1, ce qui rend les
+algorithmes en $O(L_1 L_2)$ (DTW, Edit) sensiblement plus lents et
+augmente l'avantage relatif des classifieurs sur features
+($O(L)$ uniquement pour l'extraction).
+
+\subsection{Géométrie : PCA per-gesture (variance expliquée)}\label{sec:pca-evr}
+
+\begin{table}[h]
+\centering
+\caption{Distribution moyenne de la variance expliquée (EVR) par
+composante principale, calculée gestée par geste.}
+\label{tab:pca-evr}
+\small
+\begin{tabular}{lccc}
+\toprule
+ & PC1 & PC2 & PC3 \\
+\midrule
+Domain~1 & $0.628 \pm 0.072$ & $0.314 \pm 0.045$ & $0.058 \pm 0.054$ \\
+Domain~4 & $0.518 \pm 0.078$ & $0.325 \pm 0.040$ & $0.157 \pm 0.069$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Variance conservée (PC1+PC2) : \textbf{94.2\,\%} pour Domain~1,
+\textbf{84.3\,\%} pour Domain~4.
+
+\begin{whybox}{l'EVR distingue les deux domaines}
+La PC3 capte seulement \textbf{5.8\,\%} de la variance moyenne pour
+Domain~1 : les chiffres sont effectivement tracés dans un plan
+quasi-2D, comme l'avaient observé \cite{huang2019gesture} et comme
+le prédisent les études antérieures sur le tracé aérien
+\cite{wobbrock2007dollar1}. Pour Domain~4, PC3 monte à
+\textbf{15.7\,\%} (avec écart-type 0.069), car les formes (sphère,
+cône, tore) sont intrinsèquement 3D. \emph{Conséquence directe pour
+les choix de pré-traitement} : la PCA-denoising 3D$\to$2D$\to$3D
+préserve l'information sur Domain~1 mais détruit de l'information
+utile sur Domain~4 (voir Sec.~\ref{sec:ablation}).
+\end{whybox}
+
+% =========================================================================
+\section{Validation curves (Section 5 des consignes)}\label{sec:vc}
+
+\subsection{K-means \texttt{K\_CLUSTERS} (Edit Distance, UI)}
+
+\begin{table}[h]
+\centering
+\caption{Accuracy UI moyenne de l'Edit Distance en fonction du nombre
+de centroïdes K-means.}
+\label{tab:vc-kclusters}
+\small
+\begin{tabular}{lccccccc}
+\toprule
+$K_{\text{clusters}}$ & 5 & 10 & 15 & 20 & 25 & 30 & 40 \\
+\midrule
+Domain~1 & $0.779$ & $0.825$ & $0.858$ & $0.862$ & $0.850$ & \cellcolor{bestcell}$\mathbf{0.864}$ & $0.855$ \\
+Domain~4 & $0.716$ & $0.771$ & $0.830$ & $0.833$ & $0.826$ & \cellcolor{bestcell}$\mathbf{0.857}$ & $0.829$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+L'optimum est $K=30$ pour les deux domaines, choix utilisé en aval.
+
+\begin{takeaway}
+La courbe est en plateau au-delà de $K=15$ pour Domain~1 et
+$K=20$ pour Domain~4. Le gain entre $K=20$ et $K=30$ est très faible
+(+0.2 pp pour D1, +2.4 pp pour D4). Une analyse de robustesse
+(sélection plus parcimonieuse) suggérerait $K=20$ ; nous avons gardé
+$K=30$ car c'est le strict argmax. La convention « knee point » de
+\cite{thorndike1953clusterquant} aurait donné $K \approx 15$.
+\end{takeaway}
+
+\subsection{$k$-NN \texttt{KNN\_K} (DTW, UI)}
+
+\begin{table}[h]
+\centering
+\caption{Accuracy UI moyenne du DTW $k$-NN en fonction de $k$ (courbe
+\emph{informative}, $k=1$ est forcé en aval).}
+\label{tab:vc-knn}
+\small
+\begin{tabular}{lccccc}
+\toprule
+$k$ & 1 & 3 & 5 & 7 & 9 \\
+\midrule
+Domain~1 & \cellcolor{bestcell}$\mathbf{0.918}$ & $0.911$ & $0.909$ & $0.909$ & $0.910$ \\
+Domain~4 & $0.865$ & \cellcolor{bestcell}$\mathbf{0.867}$ & $0.861$ & $0.860$ & $0.857$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{whybox}{forcer $k=1$ malgré l'optimum $k=3$ sur D4}
+L'écart entre $k=1$ et $k=3$ sur D4 est de seulement
+$+0.002$, statistiquement insignifiant (cf.\ écart-type $\sim 0.08$).
+La littérature gesture-rec utilise systématiquement le 1-NN :
+\cite{wobbrock2007dollar1, mezari2018commodity, liu2009uwave,
+mitra2007survey}. Garder $k=1$ donne une comparaison
+\emph{comparable-à-la-littérature} et évite que la mesure dépende
+d'un argmax bruyant. Ce choix est documenté dans les commentaires de
+\texttt{CODE\_IA.py} (décision \#8) et dans le pipeline
+\texttt{pipeline\_explained.tex}.
+\end{whybox}
+
+% =========================================================================
+\section{Ablation study : 6 méthodes $\times$ 3 pré-traitements}\label{sec:ablation}
+
+L'ablation tourne sur la CV \emph{user-independent} uniquement (10 plis,
+sélection par fold pour les classifieurs à GridSearchCV).
+
+\subsection{Domain~1}
+
+\begin{table}[h]
+\centering
+\caption{Ablation Domain~1 (accuracy UI). Vert = meilleur
+pré-traitement \emph{par méthode}.}
+\label{tab:ablation-d1}
+\small
+\begin{tabular}{lcccccc}
+\toprule
+Pré-traitement & Edit Dist. & DTW & DT & RF & SVM & \$1 \\
+\midrule
+(a) Aucun                 & $0.554{\scriptstyle\pm0.166}$ & $0.624{\scriptstyle\pm0.167}$ & $0.615{\scriptstyle\pm0.114}$ & $0.765{\scriptstyle\pm0.103}$ & $0.677{\scriptstyle\pm0.129}$ & \cellcolor{bestcell}$\mathbf{0.956{\scriptstyle\pm0.042}}$ \\
+(b) Standardisation       & \cellcolor{bestcell}$\mathbf{0.864{\scriptstyle\pm0.135}}$ & \cellcolor{bestcell}$\mathbf{0.918{\scriptstyle\pm0.097}}$ & \cellcolor{bestcell}$\mathbf{0.836{\scriptstyle\pm0.075}}$ & \cellcolor{bestcell}$\mathbf{0.917{\scriptstyle\pm0.046}}$ & \cellcolor{bestcell}$\mathbf{0.902{\scriptstyle\pm0.033}}$ & $0.904{\scriptstyle\pm0.100}$ \\
+(c) Std + PCA denoise     & $0.845{\scriptstyle\pm0.134}$ & $0.879{\scriptstyle\pm0.108}$ & $0.682{\scriptstyle\pm0.096}$ & $0.821{\scriptstyle\pm0.086}$ & $0.824{\scriptstyle\pm0.089}$ & $0.888{\scriptstyle\pm0.102}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Lectures clefs.}
+\begin{itemize}[itemsep=0.2em,topsep=0.2em]
+\item Le \$1 préfère \textbf{(a) aucun pré-traitement} : c'est attendu
+      car il fait lui-même sa propre normalisation
+      (resample $\to$ centroid translation $\to$ rotation indicative
+      $\to$ scaling cube) \cite{kratz2010dollar3}. La standardisation
+      \emph{externe} crée une normalisation double qui dégrade le
+      score ($0.956 \to 0.904$).
+\item Les cinq autres méthodes préfèrent \textbf{(b) standardisation
+      seule}. La PCA-denoising détériore Edit Distance, DTW, DT, RF,
+      SVM \emph{simultanément}, mais la dégradation est modérée
+      ($\sim -0.02$ à $-0.15$ point).
+\item DT \emph{chute} de $0.836 \to 0.682$ avec PCA denoising : un
+      arbre seul est très sensible au bruit injecté par la
+      back-projection 2D$\to$3D, qui modifie sensiblement les valeurs
+      de features de courbure.
+\item Sans pré-traitement, Edit Distance et DTW s'effondrent (acc
+      $\sim 0.55-0.62$) car les amplitudes brutes dominent la mesure
+      de distance. La standardisation per-gesture est donc
+      \emph{indispensable} pour ces deux méthodes
+      \cite{theodoridis2009pattern}.
+\end{itemize}
+
+\subsection{Domain~4}
+
+\begin{table}[h]
+\centering
+\caption{Ablation Domain~4 (accuracy UI). Vert = meilleur
+pré-traitement \emph{par méthode}.}
+\label{tab:ablation-d4}
+\small
+\begin{tabular}{lcccccc}
+\toprule
+Pré-traitement & Edit Dist. & DTW & DT & RF & SVM & \$1 \\
+\midrule
+(a) Aucun                 & $0.442{\scriptstyle\pm0.142}$ & $0.486{\scriptstyle\pm0.117}$ & $0.665{\scriptstyle\pm0.120}$ & $0.836{\scriptstyle\pm0.065}$ & $0.787{\scriptstyle\pm0.079}$ & $0.825{\scriptstyle\pm0.083}$ \\
+(b) Standardisation       & \cellcolor{bestcell}$\mathbf{0.857{\scriptstyle\pm0.068}}$ & \cellcolor{bestcell}$\mathbf{0.865{\scriptstyle\pm0.078}}$ & \cellcolor{bestcell}$\mathbf{0.815{\scriptstyle\pm0.053}}$ & \cellcolor{bestcell}$\mathbf{0.891{\scriptstyle\pm0.058}}$ & \cellcolor{bestcell}$\mathbf{0.853{\scriptstyle\pm0.070}}$ & \cellcolor{bestcell}$\mathbf{0.867{\scriptstyle\pm0.075}}$ \\
+(c) Std + PCA denoise     & $0.719{\scriptstyle\pm0.078}$ & $0.752{\scriptstyle\pm0.045}$ & $0.569{\scriptstyle\pm0.066}$ & $0.750{\scriptstyle\pm0.077}$ & $0.663{\scriptstyle\pm0.062}$ & $0.738{\scriptstyle\pm0.068}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Lectures clefs.}
+\begin{itemize}[itemsep=0.2em,topsep=0.2em]
+\item \textbf{Toutes} les méthodes choisissent (b) Standardisation
+      seule. Contrairement à Domain~1, le \$1 lui aussi gagne avec
+      standardisation externe ($0.825 \to 0.867$). Hypothèse : les
+      gestes 3D volumétriques de D4 (cônes, sphères, tores) sont
+      sensibles à la variance d'amplitude entre utilisateurs --- ce
+      que la normalisation interne du \$1 ne supprime pas
+      totalement.
+\item \textbf{La PCA-denoising est catastrophique sur D4} : tous les
+      classifieurs perdent $0.10$ à $0.20$ point. Cohérent avec
+      Sec.~\ref{sec:pca-evr} : la PC3 contient 15.7\,\% de variance
+      \emph{informative} sur les formes 3D, jeter cette composante
+      détruit l'information discriminative.
+\item DT (sans PCA, brut) atteint $0.665$, ce qui est correct pour
+      un arbre seul --- les features sont déjà très informatives.
+      RF gagne $+0.17$ par rapport au DT seul sur brut, et $+0.08$
+      avec standardisation : illustration empirique du gain du
+      bagging \cite{breiman2001randomforests, hastie2009elements}.
+\end{itemize}
+
+\begin{takeaway}
+\textbf{Conclusion ablation.} La standardisation per-gesture est le
+pré-traitement universel : 11 cellules sur 12 (toutes méthodes / domaines
+sauf le \$1 sur D1). La PCA-denoising sur-corrigeait : utile
+\emph{seulement} si on veut un denoising et qu'on accepte une perte
+de variance discriminante. Décision : la pipeline n'utilise PCA en
+production que pour le RF en condition (c), et même là, seul le RF y
+gagne marginalement sur D1.
+\end{takeaway}
+
+% =========================================================================
+\section{Importance des features (Random Forest, post-hoc)}
+
+L'analyse post-hoc de \texttt{feature\_importances\_} (Gini-impurity
+decrease) après fit sur les données complètes donne :
+\begin{itemize}[itemsep=0.1em,topsep=0.2em]
+\item \textbf{Domain~1} : 20/44 features conservées (importance
+      $\geq 0.01$). Les features rejetées sont essentiellement
+      les statistiques d'ordre supérieur sur l'axe Z (skewness,
+      kurtosis) --- cohérent avec la quasi-planarité du domaine.
+\item \textbf{Domain~4} : 25/44 features conservées. Les features
+      retenues incluent davantage de statistiques de courbure et
+      d'arclength par axe --- les formes 3D requièrent des
+      descripteurs de courbure.
+\end{itemize}
+
+\begin{whybox}{seuil 0.01 sur l'importance Gini}
+Le seuil $0.01$ est arbitraire mais cohérent avec la pratique
+sklearn : c'est le défaut conseillé dans \cite{pedregosa2011scikit}
+pour la fonction \texttt{SelectFromModel}. Une analyse plus rigoureuse
+utiliserait la \emph{permutation importance}
+\cite{breiman2001randomforests}, qui est plus robuste aux features
+fortement corrélées. À mentionner dans les limitations du rapport
+final.
+\end{whybox}
+
+% =========================================================================
+\section{Résultats par méthode --- User-Independent}\label{sec:results-ui}
+
+Pour chaque méthode, on rapporte l'accuracy par pli
+(leave-one-user-out, 10 plis = 10 utilisateurs tenus out tour à tour).
+
+\subsection{Domain~1}
+
+\begin{table}[h]
+\centering
+\caption{Accuracy par pli UI -- Domain~1 (preprocessing optimal par
+méthode, cf.\ Sec.~\ref{sec:ablation}).}
+\label{tab:per-fold-ui-d1}
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lcccccccccc|cc}
+\toprule
+Méthode & U0 & U1 & U2 & U3 & U4 & U5 & U6 & U7 & U8 & U9 & moy. & std \\
+\midrule
+Edit Dist. & 0.93 & 0.58 & 0.99 & 0.97 & 0.85 & 0.65 & 0.84 & 0.93 & 1.00 & 0.90 & 0.864 & 0.135 \\
+DTW        & 0.97 & 0.90 & 1.00 & 1.00 & 0.88 & 0.66 & 0.88 & 0.95 & 0.99 & 0.95 & 0.918 & 0.097 \\
+DT         & 0.88 & 0.66 & 0.85 & 0.84 & 0.78 & 0.88 & 0.89 & 0.94 & 0.86 & 0.78 & 0.836 & 0.075 \\
+RF         & 0.87 & 0.85 & 0.95 & 0.98 & 0.87 & 0.90 & 0.95 & 0.98 & 0.94 & 0.88 & 0.917 & 0.046 \\
+SVM        & 0.92 & 0.87 & 0.90 & 0.95 & 0.91 & 0.89 & 0.87 & 0.93 & 0.94 & 0.84 & 0.902 & 0.033 \\
+\$1        & 0.97 & 0.90 & 1.00 & 1.00 & 0.88 & 0.95 & 0.97 & 1.00 & 0.98 & 0.91 & \textbf{0.956} & 0.042 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{takeaway}
+\textbf{Utilisateur 1} (et un peu U5, U9) est systématiquement le plus
+difficile pour Edit Distance, DTW et \$1 (acc tombe à $\sim 0.6$).
+Hypothèse : ces utilisateurs ont un style de tracé atypique
+(timing, vitesse). \textbf{RF et SVM, eux, restent stables} (std
+0.046 et 0.033 contre 0.097 pour DTW et 0.135 pour Edit) : la
+classification feature-based est plus robuste aux variations
+inter-utilisateurs sur D1, parce que les features capturent des
+descripteurs globaux moyennés sur la séquence.
+\end{takeaway}
+
+\subsection{Domain~4}
+
+\begin{table}[h]
+\centering
+\caption{Accuracy par pli UI -- Domain~4 (preprocessing (b)
+Standardisation pour les six).}
+\label{tab:per-fold-ui-d4}
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lcccccccccc|cc}
+\toprule
+Méthode & U0 & U1 & U2 & U3 & U4 & U5 & U6 & U7 & U8 & U9 & moy. & std \\
+\midrule
+Edit Dist. & 0.90 & 0.75 & 0.85 & 0.73 & 0.89 & 0.86 & 0.94 & 0.86 & 0.95 & 0.84 & 0.857 & 0.068 \\
+DTW        & 0.89 & 0.87 & 0.88 & 0.90 & 0.80 & 0.83 & 0.95 & 0.83 & 1.00 & 0.70 & 0.865 & 0.078 \\
+DT         & 0.77 & 0.79 & 0.85 & 0.79 & 0.87 & 0.76 & 0.79 & 0.75 & 0.92 & 0.86 & 0.815 & 0.053 \\
+RF         & 0.91 & 0.92 & 0.88 & 0.79 & 0.81 & 0.84 & 0.97 & 0.90 & 0.97 & 0.92 & \textbf{0.891} & 0.058 \\
+SVM        & 0.81 & 0.91 & 0.86 & 0.82 & 0.85 & 0.80 & 0.88 & 0.71 & 0.97 & 0.92 & 0.853 & 0.070 \\
+\$1        & 0.90 & 0.80 & 0.83 & 0.90 & 0.79 & 0.84 & 0.95 & 0.94 & 0.98 & 0.74 & 0.867 & 0.075 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{takeaway}
+Sur D4, l'avantage du RF (0.891) sur DTW (0.865) et \$1 (0.867) est
+modeste et non significatif (cf.\ Sec.~\ref{sec:stats-d4}).
+\textbf{User 3 et User 9 restent difficiles pour la plupart des
+méthodes} (acc autour de 0.70-0.80 pour Edit/DTW/\$1) :
+ces utilisateurs ont vraisemblablement des proportions ou une vitesse
+de tracé idiosyncratique. Notamment, DTW chute brutalement à 0.70
+sur U9 alors que RF tient à 0.92 --- preuve que les features
+agrégées sont plus tolérantes que la distance élastique sur cet
+utilisateur précis.
+\end{takeaway}
+
+% =========================================================================
+\section{Résultats par méthode --- User-Dependent}\label{sec:results-ud}
+
+UD = leave-one-sample-out : pour chaque utilisateur on tient out une
+répétition par geste, on entraîne sur les 9 autres répétitions.
+
+\subsection{Domain~1}
+\begin{itemize}[itemsep=0.1em,topsep=0.2em]
+\item \textbf{Edit Distance} : 0.96, 0.96, 0.99, 0.97, 0.98, 0.98,
+      1.00, 0.99, 1.00, 0.97 \;\;\;\textbf{$\to$ 0.980 $\pm$ 0.014}.
+\item \textbf{DTW} : 0.97, 0.99, 0.99, 1.00, 1.00, 0.98, 0.99, 1.00,
+      0.98, 0.98 \;\;\;\textbf{$\to$ 0.988 $\pm$ 0.010}.
+\item \textbf{DT} : 0.82, 0.90, 0.85, 0.91, 0.90, 0.96, 0.92, 0.88,
+      0.90, 0.92 \;\;\;\textbf{$\to$ 0.896 $\pm$ 0.037}.
+\item \textbf{RF} : 0.90, 0.97, 0.94, 0.96, 0.97, 0.96, 0.96, 0.93,
+      0.98, 0.95 \;\;\;\textbf{$\to$ 0.952 $\pm$ 0.022}.
+\item \textbf{SVM} : 0.88, 0.99, 0.92, 0.97, 0.99, 0.97, 0.96, 0.95,
+      0.98, 0.95 \;\;\;\textbf{$\to$ 0.956 $\pm$ 0.032}.
+\item \textbf{\$1} : 1.00, 0.99, 0.99, 1.00, 1.00, 1.00, 1.00, 1.00,
+      1.00, 1.00 \;\;\;\textbf{$\to$ 0.998 $\pm$ 0.004}.
+\end{itemize}
+
+\subsection{Domain~4}
+\begin{itemize}[itemsep=0.1em,topsep=0.2em]
+\item \textbf{Edit Distance} : 0.95, 0.96, 0.98, 1.00, 0.99, 1.00,
+      0.98, 0.97, 0.97, 0.98 \;\;\;\textbf{$\to$ 0.978 $\pm$ 0.015}.
+\item \textbf{DTW} : 0.93, 0.98, 1.00, 0.99, 0.99, 0.99, 1.00, 1.00,
+      0.99, 1.00 \;\;\;\textbf{$\to$ 0.987 $\pm$ 0.020}.
+\item \textbf{DT} : 0.81, 0.89, 0.86, 0.92, 0.93, 0.89, 0.90, 0.91,
+      0.90, 0.88 \;\;\;\textbf{$\to$ 0.889 $\pm$ 0.032}.
+\item \textbf{RF} : 0.87, 0.97, 0.96, 0.97, 0.98, 0.97, 0.96, 0.97,
+      0.96, 0.98 \;\;\;\textbf{$\to$ 0.959 $\pm$ 0.030}.
+\item \textbf{SVM} : 0.89, 0.94, 0.96, 0.98, 0.96, 0.97, 0.96, 0.97,
+      0.95, 0.96 \;\;\;\textbf{$\to$ 0.954 $\pm$ 0.024}.
+\item \textbf{\$1} : 0.96, 0.95, 0.97, 0.97, 0.96, 1.00, 0.98, 0.97,
+      0.98, 0.95 \;\;\;\textbf{$\to$ 0.969 $\pm$ 0.014}.
+\end{itemize}
+
+\begin{takeaway}
+En UD, \emph{toutes} les méthodes sauf DT dépassent 0.95. Le \$1 reste
+en tête sur D1 (quasi-parfait à 0.998), mais c'est DTW qui domine
+D4 (0.987). La pression statistique étant beaucoup plus faible (les
+écart-types tombent à 0.01-0.03), les différences sont devenues
+significatives entre DT et tous les autres, et entre \$1 et tous les
+autres sur D1. Conséquence pratique : un système \emph{personnalisé}
+peut utiliser n'importe quel classifieur \emph{sauf} DT et obtenir
+$\geq 95\,\%$ de précision.
+\end{takeaway}
+
+% =========================================================================
+\section{Tests statistiques --- Domain~1 (UI)}\label{sec:stats-d1}
+
+Test Wilcoxon signed-rank apparié sur les vecteurs $n=100$
+(10 gestes $\times$ 10 utilisateurs) d'accuracy par paire
+(geste, utilisateur). 15 comparaisons par paire de méthodes.
+Corrections : Bonferroni $\alpha = 0.0033$ et Benjamini-Hochberg FDR
+au seuil 5\,\%.
+
+\subsection{Matrice complète des $p$-values brutes}
+
+\begin{table}[h]
+\centering
+\caption{$p$-values Wilcoxon brutes -- Domain~1 UI. Cellules
+$\leq 0.05$ en gras.}
+\label{tab:pvals-d1}
+\small
+\begin{tabular}{lcccccc}
+\toprule
+ & Edit Dist. & DTW & DT & RF & SVM & \$1 \\
+\midrule
+Edit Dist. & --- & $\mathbf{0.0007}$ & 0.1206 & 0.0847 & 0.4713 & $\mathbf{0.0001}$ \\
+DTW        & $\mathbf{0.0007}$ & --- & $\mathbf{0.0003}$ & 0.4545 & 0.0748 & $\mathbf{0.0356}$ \\
+DT         & 0.1206 & $\mathbf{0.0003}$ & --- & $\mathbf{0.0000}$ & $\mathbf{0.0016}$ & $\mathbf{0.0000}$ \\
+RF         & 0.0847 & 0.4545 & $\mathbf{0.0000}$ & --- & 0.1230 & $\mathbf{0.0080}$ \\
+SVM        & 0.4713 & 0.0748 & $\mathbf{0.0016}$ & 0.1230 & --- & $\mathbf{0.0005}$ \\
+\$1        & $\mathbf{0.0001}$ & $\mathbf{0.0356}$ & $\mathbf{0.0000}$ & $\mathbf{0.0080}$ & $\mathbf{0.0005}$ & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Décisions après correction}
+
+\begin{table}[h]
+\centering
+\caption{Comparaisons significatives -- Domain~1 UI. YES = différence
+significative au seuil indiqué.}
+\label{tab:pvals-corrected-d1}
+\small
+\begin{tabular}{llccc}
+\toprule
+A vs.\ B & $p_{\text{raw}}$ & $p_{\text{BH}}$ & BH sig.\ (5\%) & Bonf.\ sig.\ \\
+\midrule
+Edit Dist.\ vs.\ DTW & 0.0007 & 0.0018 & \textbf{YES} & \textbf{YES} \\
+Edit Dist.\ vs.\ DT  & 0.1206 & 0.1419 & no & no \\
+Edit Dist.\ vs.\ RF  & 0.0847 & 0.1155 & no & no \\
+Edit Dist.\ vs.\ SVM & 0.4713 & 0.4713 & no & no \\
+Edit Dist.\ vs.\ \$1 & 0.0001 & 0.0003 & \textbf{YES} & \textbf{YES} \\
+DTW vs.\ DT          & 0.0003 & 0.0010 & \textbf{YES} & \textbf{YES} \\
+DTW vs.\ RF          & 0.4545 & 0.4713 & no & no \\
+DTW vs.\ SVM         & 0.0748 & 0.1122 & no & no \\
+DTW vs.\ \$1         & 0.0356 & 0.0593 & no \emph{(limite)} & no \\
+DT vs.\ RF           & 0.0000 & 0.0002 & \textbf{YES} & \textbf{YES} \\
+DT vs.\ SVM          & 0.0016 & 0.0034 & \textbf{YES} & \textbf{YES} \\
+DT vs.\ \$1          & 0.0000 & 0.0000 & \textbf{YES} & \textbf{YES} \\
+RF vs.\ SVM          & 0.1230 & 0.1419 & no & no \\
+RF vs.\ \$1          & 0.0080 & 0.0149 & \textbf{YES} & no \\
+SVM vs.\ \$1         & 0.0005 & 0.0015 & \textbf{YES} & \textbf{YES} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{takeaway}
+\textbf{\$1 est statistiquement meilleur que TOUS sauf DTW sur D1
+(BH-FDR)}. Le seul concurrent qui résiste est DTW :
+$p_{\text{BH}} = 0.0593$, juste au-dessus du seuil 0.05. Avec Bonferroni
+(plus conservatrice), \$1 ne bat pas non plus RF ($p_{\text{Bonf}} =
+0.1195$). C'est la conclusion principale à reporter dans le rapport :
+\emph{« le \$1 Recognizer domine numériquement sur Domain~1 mais
+n'est significativement meilleur que DTW que sous le critère
+BH-FDR, pas Bonferroni »}.
+
+\textbf{Gain du bagging confirmé empiriquement} : RF $\gg$ DT
+($p \approx 10^{-5}$, significatif sous toutes les corrections).
+C'est exactement le résultat que prédit la théorie de Breiman
+\cite{breiman2001randomforests}.
+\end{takeaway}
+
+% =========================================================================
+\section{Tests statistiques --- Domain~4 (UI)}\label{sec:stats-d4}
+
+\subsection{Matrice complète des $p$-values brutes}
+
+\begin{table}[h]
+\centering
+\caption{$p$-values Wilcoxon brutes -- Domain~4 UI. Cellules
+$\leq 0.05$ en gras.}
+\label{tab:pvals-d4}
+\small
+\begin{tabular}{lcccccc}
+\toprule
+ & Edit Dist. & DTW & DT & RF & SVM & \$1 \\
+\midrule
+Edit Dist. & --- & 0.4858 & 0.0926 & 0.1415 & 0.9062 & 0.7070 \\
+DTW        & 0.4858 & --- & $\mathbf{0.0227}$ & 0.6342 & 0.5620 & 0.9012 \\
+DT         & 0.0926 & $\mathbf{0.0227}$ & --- & $\mathbf{0.0001}$ & $\mathbf{0.0474}$ & $\mathbf{0.0223}$ \\
+RF         & 0.1415 & 0.6342 & $\mathbf{0.0001}$ & --- & $\mathbf{0.0422}$ & 0.8164 \\
+SVM        & 0.9062 & 0.5620 & $\mathbf{0.0474}$ & $\mathbf{0.0422}$ & --- & 0.6125 \\
+\$1        & 0.7070 & 0.9012 & $\mathbf{0.0223}$ & 0.8164 & 0.6125 & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Décisions après correction}
+
+\begin{table}[h]
+\centering
+\caption{Comparaisons significatives -- Domain~4 UI.}
+\label{tab:pvals-corrected-d4}
+\small
+\begin{tabular}{llccc}
+\toprule
+A vs.\ B & $p_{\text{raw}}$ & $p_{\text{BH}}$ & BH sig.\ (5\%) & Bonf.\ sig.\ \\
+\midrule
+Edit Dist.\ vs.\ DTW & 0.4858 & 0.8649 & no & no \\
+Edit Dist.\ vs.\ DT  & 0.0926 & 0.2316 & no & no \\
+Edit Dist.\ vs.\ RF  & 0.1415 & 0.3032 & no & no \\
+Edit Dist.\ vs.\ SVM & 0.9062 & 0.9062 & no & no \\
+Edit Dist.\ vs.\ \$1 & 0.7070 & 0.8838 & no & no \\
+DTW vs.\ DT          & 0.0227 & 0.1133 & no & no \\
+DTW vs.\ RF          & 0.6342 & 0.8649 & no & no \\
+DTW vs.\ SVM         & 0.5620 & 0.8649 & no & no \\
+DTW vs.\ \$1         & 0.9012 & 0.9062 & no & no \\
+DT vs.\ RF           & 0.0001 & 0.0009 & \textbf{YES} & \textbf{YES} \\
+DT vs.\ SVM          & 0.0474 & 0.1422 & no & no \\
+DT vs.\ \$1          & 0.0223 & 0.1133 & no & no \\
+RF vs.\ SVM          & 0.0422 & 0.1422 & no & no \\
+RF vs.\ \$1          & 0.8164 & 0.9062 & no & no \\
+SVM vs.\ \$1         & 0.6125 & 0.8649 & no & no \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{takeaway}
+\textbf{Sur D4, presque rien n'est significatif après correction}.
+Le seul résultat significatif est \textbf{RF vs.\ DT}
+($p_{\text{BH}} = 0.0009$), qui confirme encore le gain du bagging
+\cite{breiman2001randomforests, hastie2009elements}.
+
+RF domine numériquement (0.891) mais le test indique qu'il
+n'est pas significativement meilleur que Edit Dist., DTW, SVM, ou \$1.
+La conclusion honnête pour le rapport est : \emph{« sur Domain~4,
+les méthodes Edit Distance, DTW, RF, SVM et \$1 sont
+statistiquement équivalentes ; seule la dégradation observée pour
+DT seul est significative »}. C'est un résultat positif : il
+suggère que les gestes 3D volumétriques sont \emph{intrinsèquement
+difficiles} de la même manière pour des paradigmes très différents
+(distance élastique, ensemble d'arbres, kernel, template-matching).
+\end{takeaway}
+
+% =========================================================================
+\section{Confusion matrices --- modèles gagnants}
+
+Les confusion matrices des modèles gagnants en UI ont été sauvées :
+\begin{itemize}[itemsep=0.1em]
+\item \texttt{Outputs/figures/confusion\_matrices/confusion\_\$1\_User\_independent\_Domain\_1.png}
+\item \texttt{Outputs/figures/confusion\_matrices/confusion\_RF\_User\_independent\_Domain\_4.png}
+\end{itemize}
+
+À ouvrir et inspecter pour identifier les paires de gestes
+fréquemment confondues. Hypothèses attendues :
+
+\paragraph{Domain~1.} Confusions probables : \emph{1 vs.\ 7}
+(traits simples), \emph{5 vs.\ 6} (boucles similaires), \emph{3 vs.\ 8}
+(double-courbe).
+
+\paragraph{Domain~4.} Confusions probables : \emph{cône vs.\ pyramide}
+(seule la base les distingue), \emph{cylindre vs.\ tube cylindrique}
+(noms similaires, différence de remplissage), \emph{sphère vs.\
+hémisphère} (un parcours complet vs.\ demi-parcours).
+
+\textbf{Une fois les figures consultées}, mettre à jour cette section
+avec les confusions observées et discuter de leur cohérence avec ces
+hypothèses.
+
+% =========================================================================
+\section{Synthèse interprétative}
+
+\subsection{Pourquoi le \$1 gagne sur Domain~1 mais pas Domain~4}
+
+Le \$1 Recognizer est conçu autour d'une hypothèse de
+\textbf{quasi-planarité} : la rotation \emph{indicative} amène le
+premier point sur la direction du centroïde, ce qui n'a un effet de
+canonisation fort que si la trajectoire est principalement planaire.
+Sur Domain~1, PC1+PC2 = 94.2\,\% : l'hypothèse tient, et le \$1
+écrase tout le monde. Sur Domain~4, PC3 = 15.7\,\% : l'hypothèse est
+violée pour 1/6 de la variance, et le \$1 retombe au niveau des
+autres méthodes ($0.867$ vs.\ RF $0.891$). C'est cohérent avec
+\cite{kratz2010dollar3} qui notent que leur \$3 fonctionne mieux sur
+des gestes ayant un « plan dominant ».
+
+\subsection{Pourquoi DTW reste compétitif partout}
+
+DTW n'a aucune hypothèse géométrique. Il aligne les séquences
+temporellement, et ça marche tant que les axes ont été standardisés.
+Conséquence : DTW est numériquement \textbf{le 2\textsuperscript{e}
+meilleur sur D1} (0.918, juste derrière \$1) et le
+\textbf{2\textsuperscript{e} en UD partout} (0.988 sur D1, 0.987 sur
+D4). C'est le candidat naturel si l'on veut une méthode robuste et
+agnostique au domaine \cite{sakoe1978dtw, mueller2007info}.
+
+\subsection{Pourquoi RF prend la tête sur D4 UI}
+
+Sur D4 UI, les méthodes basées distance (DTW, Edit, \$1) souffrent
+des variations inter-utilisateurs : la \emph{forme} d'une sphère est
+préservée d'un utilisateur à l'autre, mais le \emph{tracé temporel}
+(vitesse, ordre des points) varie. Les classifieurs feature-based
+(RF, SVM) sont plus tolérants car leurs features (courbure moyenne,
+arc-length, statistiques globales) capturent la forme indépendamment
+du timing. RF y prend la tête (0.891) avec un écart-type très faible
+(0.058), bénéficiant en plus du bagging contre le sur-apprentissage
+d'un arbre seul. C'est l'illustration empirique de la prédiction de
+\cite{breiman2001randomforests}.
+
+\subsection{Pourquoi DT chute toujours en dernier}
+
+DT est notre témoin pédagogique. Un arbre seul, même tuned par
+GridSearch, est limité par sa structure d'apprentissage avide
+(\emph{greedy}) et par sa variance élevée. Sur D1 il atteint 0.836 vs.\
+RF 0.917 ; sur D4, 0.815 vs.\ RF 0.891. La différence RF~$-$~DT vaut
+$+0.08$ en moyenne sur les deux domaines, exactement dans la
+fourchette typique de gain reportée par \cite{breiman2001randomforests}
+et \cite{hastie2009elements} pour les datasets de petite à moyenne
+taille.
+
+\subsection{Pourquoi UD $\gg$ UI partout}
+
+L'écart UD$-$UI vaut en moyenne $+0.08$ point (D1) et $+0.10$ point
+(D4). Cohérent avec les observations de \cite{huang2019gesture} dans
+le papier original du dataset : connaître l'utilisateur permet
+d'apprendre ses tics de tracé (vitesse moyenne, taille des boucles,
+rotation préférée). Toutes les méthodes en bénéficient, mais DT
+seul reste à 0.89 même en UD : l'arbre seul n'a pas assez de capacité
+pour exploiter ce gain.
+
+% =========================================================================
+\section{Limitations à acknowledger}
+
+\begin{enumerate}[itemsep=0.2em,topsep=0.2em]
+\item \textbf{Asymétrie de tuning} : DT/RF/SVM ont GridSearchCV
+      \emph{par fold} (nested CV), tandis que Edit/DTW/\$1 ont des
+      hyperparamètres choisis une seule fois par validation curve.
+      Ce n'est pas un protocole identique, mais la décision est
+      \emph{intentionnelle} (combinatoire $\times$ coût) et
+      documentée. À noter dans le rapport.
+\item \textbf{$k=1$ forcé} : la courbe de validation est conservée
+      à titre informatif (Sec.~\ref{sec:vc}). L'argmax sur D4 était
+      $k=3$ avec un écart de seulement $+0.002$, négligeable.
+\item \textbf{Pas de Golden Section Search} dans le \$1 (cf.\
+      \cite{kratz2010dollar3} \S « Search for Minimum Distance at
+      Best Angle »). Coût $\sim 11\times$ pour un gain marginal.
+\item \textbf{PCA et $k$-means} : la PCA per-gesture est faite gestée
+      par gestée donc sans fuite ; les centroïdes $k$-means sont
+      ajustés \emph{per fold} sur le train uniquement. Le pipeline
+      est rigoureux malgré l'autorisation des consignes d'utiliser un
+      fit global.
+\item \textbf{Permutation importance} non utilisée : on s'est appuyé
+      sur Gini-importance, sensible aux corrélations entre features
+      \cite{breiman2001randomforests}. À mentionner comme
+      « amélioration possible ».
+\item \textbf{Dataset petit} ($\sim 1000$ séquences) : limite l'usage
+      d'approches deep learning, justifie le retrait du LSTM
+      antérieurement présent.
+\end{enumerate}
+
+% =========================================================================
+\section*{Références}
+\addcontentsline{toc}{section}{Références}
+\renewcommand{\refname}{}
+
+\begin{thebibliography}{99}
+
+\bibitem{breiman2001randomforests}
+Breiman, L.\ (2001). Random forests.
+\textit{Machine Learning}, 45(1), 5--32.
+
+\bibitem{cortes1995svm}
+Cortes, C., \& Vapnik, V.\ (1995). Support-vector networks.
+\textit{Machine Learning}, 20, 273--297.
+
+\bibitem{hastie2009elements}
+Hastie, T., Tibshirani, R., \& Friedman, J.\ (2009).
+\textit{The Elements of Statistical Learning} (2\textsuperscript{e}
+éd.). Springer.
+
+\bibitem{huang2019gesture}
+Huang, Jaiswal, \& Rai (2019). Gesture-based system for next
+generation natural and intuitive interfaces.
+\textit{AI EDAM}, 33(1), 54--68.
+
+\bibitem{kratz2010dollar3}
+Kratz, S., \& Rohs, M.\ (2010). A \$3 gesture recognizer: simple
+gesture recognition for devices equipped with 3D acceleration
+sensors. \textit{IUI'10}, 341--344.
+
+\bibitem{liu2009uwave}
+Liu, J., Zhong, L., Wickramasuriya, J., \& Vasudevan, V.\ (2009).
+uWave: Accelerometer-based personalized gesture recognition.
+\textit{Pervasive and Mobile Computing}, 5(6), 657--675.
+
+\bibitem{mezari2018commodity}
+Mezari, A., \& Maglogiannis, I.\ (2018). An easily customized gesture
+recognizer for assisted living using commodity mobile devices.
+\textit{J.\ Healthcare Engineering}, 2018:3180652.
+
+\bibitem{mitra2007survey}
+Mitra, S., \& Acharya, T.\ (2007). Gesture recognition: a survey.
+\textit{IEEE Trans.\ SMC-C}, 37(3), 311--324.
+
+\bibitem{mueller2007info}
+M\"uller, M.\ (2007). \textit{Information Retrieval for Music and
+Motion}. Springer.
+
+\bibitem{pedregosa2011scikit}
+Pedregosa, F., et al.\ (2011). Scikit-learn: Machine learning in
+Python. \textit{JMLR}, 12, 2825--2830.
+
+\bibitem{sakoe1978dtw}
+Sakoe, H., \& Chiba, S.\ (1978). Dynamic programming algorithm
+optimization for spoken word recognition. \textit{IEEE Trans.\
+ASSP}, 26(1), 43--49.
+
+\bibitem{theodoridis2009pattern}
+Theodoridis, S., \& Koutroumbas, K.\ (2009). \textit{Pattern
+Recognition} (4\textsuperscript{e} éd.). Academic Press.
+
+\bibitem{thorndike1953clusterquant}
+Thorndike, R.\ L.\ (1953). Who belongs in the family?
+\textit{Psychometrika}, 18(4), 267--276.
+
+\bibitem{wobbrock2007dollar1}
+Wobbrock, J.~O., Wilson, A.~D., \& Li, Y.\ (2007). Gestures without
+libraries, toolkits or training: A \$1 recognizer for user interface
+prototypes. \textit{UIST'07}, 159--168.
+
+\end{thebibliography}
+
+\end{document}
