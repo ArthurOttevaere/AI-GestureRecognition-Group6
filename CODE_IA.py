@@ -325,18 +325,20 @@ KNN_K            = 1
 # leaves ~180 samples per inner test fold, which is sufficient.
 _INNER_CV_FOLDS = 5
 
-# RF GridSearchCV grid (kept compact to limit cost)
+# RF GridSearchCV grid (regularised to limit overfitting on this small dataset; Breiman 2001).
 RF_GRID = {
     "n_estimators"     : [100, 200],
-    "max_depth"        : [None, 20],
-    "min_samples_split": [2, 5],
+    "max_depth"        : [5, 10, 15],
+    "min_samples_split": [5, 10],
+    "min_samples_leaf" : [2, 5],
 }
 RF_GRID_INNER_CV = _INNER_CV_FOLDS
 
-# Decision Tree GridSearchCV grid (Quinlan 1986; Breiman et al. 1984 CART)
+# Decision Tree GridSearchCV grid (Quinlan 1986; Breiman et al. 1984 CART) -> regularised to limit overfitting on this small dataset. 
 DT_GRID = {
-    "max_depth"        : [None, 10, 20],
-    "min_samples_split": [2, 5, 10],
+    "max_depth"        : [5, 10, 15],
+    "min_samples_split": [5, 10, 20],
+    "min_samples_leaf" : [2, 5, 10],
     "criterion"        : ["gini", "entropy"],
 }
 DT_GRID_INNER_CV = _INNER_CV_FOLDS
