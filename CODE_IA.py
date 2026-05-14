@@ -343,12 +343,12 @@ LR_GRID_INNER_CV = _INNER_CV_FOLDS
 # per_fold): variance filter -> correlation deduplication (Yu & Liu 2004,
 # JMLR) -> permutation importance on held-out split (Breiman 2001; Ambroise
 # & McLachlan 2002, PNAS).  N_REPEATS controls the permutation count.
-FEATURE_SELECTION_CUM_THRESHOLD = 0.90
+FEATURE_SELECTION_CUM_THRESHOLD = 0.95 # cumulative importance threshold for selection (Guyon & Elisseeff 2003, JMLR)
 FEATURE_SELECTION_N_REPEATS     = 10
 # Pearson |r| threshold for correlation-based redundancy removal.
 # Features with |r| > FEATURE_CORR_THRESHOLD are considered redundant;
 # the member with lower variance is discarded (Yu & Liu 2004, JMLR §4).
-FEATURE_CORR_THRESHOLD          = 0.95
+FEATURE_CORR_THRESHOLD          = 0.99 # Yu & Liu (2004) use 0.95, but this is relaxed to 0.99 to preserve more features for the RF permutation importance step, which is sensitive to feature count (Strobl et al. 2007).
 
 # Validation-curve scan ranges (Section 5 of instructions)
 VC_K_CLUSTERS = [5, 10, 15, 20, 25, 30, 40]
