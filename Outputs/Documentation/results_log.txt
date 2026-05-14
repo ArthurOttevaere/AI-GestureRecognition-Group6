@@ -1,0 +1,1619 @@
+Warming up numba JIT ... done.
+
+=== Loading Domain 1 ===
+
+-------------------------------------------------------
+  Domain 1
+-------------------------------------------------------
+  Total sequences : 1000
+  Subjects        : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  Gesture classes : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  Sequence lengths: min=31, max=240, mean=85.1, std=26.5
+  Domain 1: 1000 sequences - completeness OK (10 users x 10 gestures x 10 reps)
+
+=== Loading Domain 4 ===
+
+-------------------------------------------------------
+  Domain 4
+-------------------------------------------------------
+  Total sequences : 1000
+  Subjects        : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  Gesture classes : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  Sequence lengths: min=56, max=314, mean=139.6, std=43.7
+  Domain 4: 1000 sequences - completeness OK (10 users x 10 gestures x 10 reps)
+
+=== Exploratory Visualisation ===
+
+=== Standardisation ===
+  Both domains standardised (per-gesture, per-axis).
+
+=== Per-gesture PCA denoising analysis ===
+
+  Per-gesture PCA denoising - Domain 1
+    PC1: mean EVR = 0.628 +/- 0.072
+    PC2: mean EVR = 0.314 +/- 0.045
+    PC3: mean EVR = 0.058 +/- 0.054
+    Variance kept   (PC1+PC2): 94.2%
+    Variance removed (PC3+): 5.8%
+
+  Per-gesture PCA denoising - Domain 4
+    PC1: mean EVR = 0.518 +/- 0.078
+    PC2: mean EVR = 0.325 +/- 0.040
+    PC3: mean EVR = 0.157 +/- 0.069
+    Variance kept   (PC1+PC2): 84.3%
+    Variance removed (PC3+): 15.7%
+
+=== Applying PCA denoising (3D -> 2D -> 3D) ===
+  PCA denoising applied to both domains.
+
+=== Generating fold indices (shared across all methods) ===
+  Domain 1 - UI: 10 | UD: 10
+  Domain 4 - UI: 10 | UD: 10
+
+=== Validation curves - hyperparameter K ===
+  Domain 1 - K_CLUSTERS scan (Edit Distance UI):
+  K=  5: acc = 0.779 +/- 0.183
+  K= 10: acc = 0.825 +/- 0.148
+  K= 15: acc = 0.858 +/- 0.161
+  K= 20: acc = 0.862 +/- 0.142
+  K= 25: acc = 0.850 +/- 0.143
+  K= 30: acc = 0.864 +/- 0.135
+  K= 40: acc = 0.855 +/- 0.134
+  Domain 1 - kNN K scan (DTW UI) [informative only, k=1 forced]:
+  k=1: acc = 0.918 +/- 0.097
+  k=3: acc = 0.911 +/- 0.118
+  k=5: acc = 0.909 +/- 0.114
+  k=7: acc = 0.909 +/- 0.116
+  k=9: acc = 0.910 +/- 0.114
+  Domain 1 selected (on standardised data): K_CLUSTERS=30, KNN_K=1 (forced; curve optimum was k=1)
+
+  Domain 4 - K_CLUSTERS scan (Edit Distance UI):
+  K=  5: acc = 0.716 +/- 0.126
+  K= 10: acc = 0.771 +/- 0.086
+  K= 15: acc = 0.830 +/- 0.084
+  K= 20: acc = 0.833 +/- 0.093
+  K= 25: acc = 0.826 +/- 0.090
+  K= 30: acc = 0.857 +/- 0.068
+  K= 40: acc = 0.829 +/- 0.103
+  Domain 4 - kNN K scan (DTW UI) [informative only, k=1 forced]:
+  k=1: acc = 0.865 +/- 0.078
+  k=3: acc = 0.867 +/- 0.073
+  k=5: acc = 0.861 +/- 0.080
+  k=7: acc = 0.860 +/- 0.080
+  k=9: acc = 0.857 +/- 0.078
+  Domain 4 selected (on standardised data): K_CLUSTERS=30, KNN_K=1 (forced; curve optimum was k=3)
+
+=== Ablation Study - Domain 1 - User-Independent ===
+
+=================================================================
+  ABLATION STUDY | Domain 1 | User-independent
+=================================================================
+
+  (a) No preprocessing
+    Edit (UI) - User 0 held out -> acc = 0.600
+    Edit (UI) - User 1 held out -> acc = 0.360
+    Edit (UI) - User 2 held out -> acc = 0.840
+    Edit (UI) - User 3 held out -> acc = 0.370
+    Edit (UI) - User 4 held out -> acc = 0.610
+    Edit (UI) - User 5 held out -> acc = 0.680
+    Edit (UI) - User 6 held out -> acc = 0.500
+    Edit (UI) - User 7 held out -> acc = 0.720
+    Edit (UI) - User 8 held out -> acc = 0.570
+    Edit (UI) - User 9 held out -> acc = 0.290
+    [(a) No preprocessing] Edit Distance: 0.554 +/- 0.166
+    DTW  (UI) - User 0 held out -> acc = 0.630
+    DTW  (UI) - User 1 held out -> acc = 0.630
+    DTW  (UI) - User 2 held out -> acc = 0.910
+    DTW  (UI) - User 3 held out -> acc = 0.610
+    DTW  (UI) - User 4 held out -> acc = 0.520
+    DTW  (UI) - User 5 held out -> acc = 0.700
+    DTW  (UI) - User 6 held out -> acc = 0.580
+    DTW  (UI) - User 7 held out -> acc = 0.820
+    DTW  (UI) - User 8 held out -> acc = 0.590
+    DTW  (UI) - User 9 held out -> acc = 0.250
+    [(a) No preprocessing] DTW: 0.624 +/- 0.167
+    DT [no EVR]   (UI) - User 0 -> test=0.620 train=0.837 (kept 22/44):
+      ['x_mean', 'x_std', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_mean', 'y_std', 'y_min', 'y_skew', 'y_kurt', 'z_max', 'z_range', 'speed_std', 'speed_max', 'accel_std', 'curv_mean', 'curv_std', 'speed_seg3', 'path_x', 'path_y', 'path_z']
+    DT [no EVR]   (UI) - User 1 -> test=0.550 train=0.950 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 2 -> test=0.780 train=0.957 (kept 13/44):
+      ['x_std', 'x_range', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'speed_mean', 'speed_min', 'curv_mean', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 3 -> test=0.690 train=0.864 (kept 7/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'arc_length', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 4 -> test=0.630 train=0.926 (kept 10/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'arc_length', 'curv_mean', 'speed_seg1', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 5 -> test=0.700 train=0.924 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 6 -> test=0.680 train=0.911 (kept 13/44):
+      ['x_std', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_skew', 'y_kurt', 'z_skew', 'speed_min', 'arc_length', 'curv_mean', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 7 -> test=0.680 train=0.884 (kept 10/44):
+      ['x_range', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'arc_length', 'curv_total', 'speed_seg1', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 8 -> test=0.740 train=0.950 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 9 -> test=0.550 train=0.960 (kept 13/44):
+      ['x_std', 'x_range', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'z_max', 'z_kurt', 'accel_std', 'curv_total', 'path_x', 'path_y', 'path_z']
+    Feature selection summary (top-5): ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_dt_ui_d1.csv
+    [(a) No preprocessing] DT: 0.662 +/- 0.071
+    RF [no EVR]   (UI) - User 0 -> test=0.740 train=0.996 (kept 22/44):
+      ['x_mean', 'x_std', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_mean', 'y_std', 'y_min', 'y_skew', 'y_kurt', 'z_max', 'z_range', 'speed_std', 'speed_max', 'accel_std', 'curv_mean', 'curv_std', 'speed_seg3', 'path_x', 'path_y', 'path_z']
+    RF [no EVR]   (UI) - User 1 -> test=0.700 train=0.981 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 2 -> test=0.910 train=0.998 (kept 13/44):
+      ['x_std', 'x_range', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'speed_mean', 'speed_min', 'curv_mean', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 3 -> test=0.860 train=0.991 (kept 7/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'arc_length', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 4 -> test=0.680 train=0.998 (kept 10/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'arc_length', 'curv_mean', 'speed_seg1', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 5 -> test=0.630 train=0.987 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 6 -> test=0.780 train=0.998 (kept 13/44):
+      ['x_std', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_skew', 'y_kurt', 'z_skew', 'speed_min', 'arc_length', 'curv_mean', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 7 -> test=0.840 train=0.996 (kept 10/44):
+      ['x_range', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'arc_length', 'curv_total', 'speed_seg1', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 8 -> test=0.850 train=0.984 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 9 -> test=0.770 train=0.994 (kept 13/44):
+      ['x_std', 'x_range', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'z_max', 'z_kurt', 'accel_std', 'curv_total', 'path_x', 'path_y', 'path_z']
+    Feature selection summary (top-5): ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_rf_ui_d1.csv
+    [(a) No preprocessing] RF: 0.776 +/- 0.085
+    LR [no EVR]   (UI) - User 0 -> test=0.900 train=0.998 (kept 22/44):
+      ['x_mean', 'x_std', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_mean', 'y_std', 'y_min', 'y_skew', 'y_kurt', 'z_max', 'z_range', 'speed_std', 'speed_max', 'accel_std', 'curv_mean', 'curv_std', 'speed_seg3', 'path_x', 'path_y', 'path_z']
+    LR [no EVR]   (UI) - User 1 -> test=0.650 train=0.880 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 2 -> test=0.930 train=0.980 (kept 13/44):
+      ['x_std', 'x_range', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'speed_mean', 'speed_min', 'curv_mean', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 3 -> test=0.920 train=0.910 (kept 7/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'arc_length', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 4 -> test=0.880 train=0.977 (kept 10/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'arc_length', 'curv_mean', 'speed_seg1', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 5 -> test=0.690 train=0.873 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 6 -> test=0.890 train=0.990 (kept 13/44):
+      ['x_std', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_skew', 'y_kurt', 'z_skew', 'speed_min', 'arc_length', 'curv_mean', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 7 -> test=0.980 train=0.952 (kept 10/44):
+      ['x_range', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'arc_length', 'curv_total', 'speed_seg1', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 8 -> test=0.890 train=0.856 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 9 -> test=0.810 train=0.981 (kept 13/44):
+      ['x_std', 'x_range', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'z_max', 'z_kurt', 'accel_std', 'curv_total', 'path_x', 'path_y', 'path_z']
+    Feature selection summary (top-5): ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ui_d1.csv
+    [(a) No preprocessing] LR: 0.854 +/- 0.101
+    $1   (UI) - User 0 held out -> acc = 0.990
+    $1   (UI) - User 1 held out -> acc = 1.000
+    $1   (UI) - User 2 held out -> acc = 1.000
+    $1   (UI) - User 3 held out -> acc = 1.000
+    $1   (UI) - User 4 held out -> acc = 0.970
+    $1   (UI) - User 5 held out -> acc = 1.000
+    $1   (UI) - User 6 held out -> acc = 0.980
+    $1   (UI) - User 7 held out -> acc = 1.000
+    $1   (UI) - User 8 held out -> acc = 0.990
+    $1   (UI) - User 9 held out -> acc = 1.000
+    [(a) No preprocessing] $1: 0.993 +/- 0.010
+
+  (b) Standardisation only
+    Edit (UI) - User 0 held out -> acc = 0.930
+    Edit (UI) - User 1 held out -> acc = 0.580
+    Edit (UI) - User 2 held out -> acc = 0.990
+    Edit (UI) - User 3 held out -> acc = 0.970
+    Edit (UI) - User 4 held out -> acc = 0.850
+    Edit (UI) - User 5 held out -> acc = 0.650
+    Edit (UI) - User 6 held out -> acc = 0.840
+    Edit (UI) - User 7 held out -> acc = 0.930
+    Edit (UI) - User 8 held out -> acc = 1.000
+    Edit (UI) - User 9 held out -> acc = 0.900
+    [(b) Standardisation] Edit Distance: 0.864 +/- 0.135
+    DTW  (UI) - User 0 held out -> acc = 0.970
+    DTW  (UI) - User 1 held out -> acc = 0.900
+    DTW  (UI) - User 2 held out -> acc = 1.000
+    DTW  (UI) - User 3 held out -> acc = 1.000
+    DTW  (UI) - User 4 held out -> acc = 0.880
+    DTW  (UI) - User 5 held out -> acc = 0.660
+    DTW  (UI) - User 6 held out -> acc = 0.880
+    DTW  (UI) - User 7 held out -> acc = 0.950
+    DTW  (UI) - User 8 held out -> acc = 0.990
+    DTW  (UI) - User 9 held out -> acc = 0.950
+    [(b) Standardisation] DTW: 0.918 +/- 0.097
+    DT [no EVR]   (UI) - User 0 -> test=0.850 train=0.949 (kept 6/44):
+      ['x_min', 'x_kurt', 'y_min', 'y_kurt', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 1 -> test=0.780 train=0.969 (kept 13/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'z_range', 'bbox_diag', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 2 -> test=0.750 train=0.907 (kept 6/44):
+      ['x_min', 'y_min', 'y_max', 'y_kurt', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 3 -> test=0.880 train=0.940 (kept 8/44):
+      ['x_min', 'x_kurt', 'y_max', 'y_kurt', 'z_kurt', 'speed_seg1', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 4 -> test=0.690 train=0.902 (kept 3/44):
+      ['y_max', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 5 -> test=0.810 train=0.941 (kept 6/44):
+      ['x_min', 'x_skew', 'y_max', 'arc_length', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 6 -> test=0.910 train=0.959 (kept 9/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'z_max', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 7 -> test=0.910 train=0.968 (kept 7/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 8 -> test=0.860 train=0.944 (kept 11/44):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'arc_length', 'speed_seg1', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 9 -> test=0.810 train=0.924 (kept 7/44):
+      ['x_min', 'y_kurt', 'speed_mean', 'arc_length', 'speed_seg1', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['path_x', 'path_y', 'x_min', 'y_max', 'x_kurt']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_dt_ui_d1.csv
+    [(b) Standardisation] DT: 0.825 +/- 0.068
+    RF [no EVR]   (UI) - User 0 -> test=0.920 train=0.990 (kept 6/44):
+      ['x_min', 'x_kurt', 'y_min', 'y_kurt', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 1 -> test=0.850 train=0.992 (kept 13/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'z_range', 'bbox_diag', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 2 -> test=0.870 train=0.976 (kept 6/44):
+      ['x_min', 'y_min', 'y_max', 'y_kurt', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 3 -> test=0.960 train=0.996 (kept 8/44):
+      ['x_min', 'x_kurt', 'y_max', 'y_kurt', 'z_kurt', 'speed_seg1', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 4 -> test=0.720 train=0.914 (kept 3/44):
+      ['y_max', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 5 -> test=0.870 train=0.989 (kept 6/44):
+      ['x_min', 'x_skew', 'y_max', 'arc_length', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 6 -> test=0.950 train=0.993 (kept 9/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'z_max', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 7 -> test=0.980 train=0.987 (kept 7/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 8 -> test=0.910 train=0.994 (kept 11/44):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'arc_length', 'speed_seg1', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 9 -> test=0.870 train=0.978 (kept 7/44):
+      ['x_min', 'y_kurt', 'speed_mean', 'arc_length', 'speed_seg1', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['path_x', 'path_y', 'x_min', 'y_max', 'x_kurt']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_rf_ui_d1.csv
+    [(b) Standardisation] RF: 0.890 +/- 0.070
+    LR [no EVR]   (UI) - User 0 -> test=0.900 train=0.937 (kept 6/44):
+      ['x_min', 'x_kurt', 'y_min', 'y_kurt', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 1 -> test=0.630 train=0.969 (kept 13/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'z_range', 'bbox_diag', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 2 -> test=0.830 train=0.923 (kept 6/44):
+      ['x_min', 'y_min', 'y_max', 'y_kurt', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 3 -> test=0.990 train=0.948 (kept 8/44):
+      ['x_min', 'x_kurt', 'y_max', 'y_kurt', 'z_kurt', 'speed_seg1', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 4 -> test=0.710 train=0.822 (kept 3/44):
+      ['y_max', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 5 -> test=0.790 train=0.941 (kept 6/44):
+      ['x_min', 'x_skew', 'y_max', 'arc_length', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 6 -> test=0.950 train=0.966 (kept 9/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'z_max', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 7 -> test=0.980 train=0.947 (kept 7/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 8 -> test=0.940 train=0.972 (kept 11/44):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'arc_length', 'speed_seg1', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 9 -> test=0.860 train=0.909 (kept 7/44):
+      ['x_min', 'y_kurt', 'speed_mean', 'arc_length', 'speed_seg1', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['path_x', 'path_y', 'x_min', 'y_max', 'x_kurt']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ui_d1.csv
+    [(b) Standardisation] LR: 0.858 +/- 0.113
+    $1   (UI) - User 0 held out -> acc = 0.950
+    $1   (UI) - User 1 held out -> acc = 0.940
+    $1   (UI) - User 2 held out -> acc = 0.960
+    $1   (UI) - User 3 held out -> acc = 0.960
+    $1   (UI) - User 4 held out -> acc = 0.790
+    $1   (UI) - User 5 held out -> acc = 0.700
+    $1   (UI) - User 6 held out -> acc = 0.860
+    $1   (UI) - User 7 held out -> acc = 0.890
+    $1   (UI) - User 8 held out -> acc = 0.890
+    $1   (UI) - User 9 held out -> acc = 0.960
+    [(b) Standardisation] $1: 0.890 +/- 0.082
+
+  (c) Standardisation + PCA denoising 3D->2D->3D
+    Edit (UI) - User 0 held out -> acc = 0.930
+    Edit (UI) - User 1 held out -> acc = 0.670
+    Edit (UI) - User 2 held out -> acc = 0.990
+    Edit (UI) - User 3 held out -> acc = 0.960
+    Edit (UI) - User 4 held out -> acc = 0.800
+    Edit (UI) - User 5 held out -> acc = 0.540
+    Edit (UI) - User 6 held out -> acc = 0.830
+    Edit (UI) - User 7 held out -> acc = 0.930
+    Edit (UI) - User 8 held out -> acc = 0.890
+    Edit (UI) - User 9 held out -> acc = 0.910
+    [(c) Std + PCA denoise] Edit Distance: 0.845 +/- 0.134
+    DTW  (UI) - User 0 held out -> acc = 0.900
+    DTW  (UI) - User 1 held out -> acc = 0.880
+    DTW  (UI) - User 2 held out -> acc = 0.930
+    DTW  (UI) - User 3 held out -> acc = 0.990
+    DTW  (UI) - User 4 held out -> acc = 0.830
+    DTW  (UI) - User 5 held out -> acc = 0.580
+    DTW  (UI) - User 6 held out -> acc = 0.870
+    DTW  (UI) - User 7 held out -> acc = 0.940
+    DTW  (UI) - User 8 held out -> acc = 0.950
+    DTW  (UI) - User 9 held out -> acc = 0.920
+    [(c) Std + PCA denoise] DTW: 0.879 +/- 0.108
+    DT [+EVR]   (UI) - User 0 -> test=0.850 train=0.819 (kept 25/47):
+      ['x_std', 'x_min', 'x_max', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_min', 'z_max', 'z_range', 'z_skew', 'z_kurt', 'accel_mean', 'arc_length', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc2', 'evr_pc3']
+    DT [+EVR]   (UI) - User 1 -> test=0.640 train=0.908 (kept 7/47):
+      ['x_min', 'y_min', 'y_max', 'y_kurt', 'arc_length', 'path_x', 'path_y']
+    DT [+EVR]   (UI) - User 2 -> test=0.700 train=0.932 (kept 19/47):
+      ['x_max', 'x_skew', 'y_min', 'y_max', 'y_skew', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_max', 'accel_mean', 'accel_std', 'bbox_diag', 'curv_std', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'evr_pc3']
+    DT [+EVR]   (UI) - User 3 -> test=0.770 train=0.879 (kept 8/47):
+      ['x_min', 'x_max', 'x_skew', 'y_kurt', 'speed_seg1', 'path_x', 'path_y', 'evr_pc3']
+    DT [+EVR]   (UI) - User 4 -> test=0.520 train=0.934 (kept 14/47):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'speed_mean', 'speed_std', 'arc_length', 'curv_mean', 'speed_seg2', 'path_x', 'path_y']
+    DT [+EVR]   (UI) - User 5 -> test=0.760 train=0.901 (kept 24/47):
+      ['x_std', 'x_min', 'x_max', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_std', 'z_skew', 'z_kurt', 'speed_std', 'accel_std', 'arc_length', 'bbox_diag', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc3']
+    DT [+EVR]   (UI) - User 6 -> test=0.530 train=0.952 (kept 16/47):
+      ['x_min', 'x_max', 'x_skew', 'y_std', 'y_min', 'y_max', 'z_std', 'z_max', 'z_kurt', 'speed_mean', 'arc_length', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'evr_pc3']
+    DT [+EVR]   (UI) - User 7 -> test=0.710 train=0.884 (kept 18/47):
+      ['x_std', 'x_min', 'x_skew', 'y_min', 'y_max', 'y_skew', 'speed_mean', 'speed_std', 'speed_max', 'accel_mean', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'path_x', 'path_y', 'evr_pc1', 'evr_pc3']
+    DT [+EVR]   (UI) - User 8 -> test=0.580 train=0.753 (kept 9/47):
+      ['x_skew', 'x_kurt', 'z_range', 'speed_min', 'accel_mean', 'arc_length', 'speed_seg1', 'path_x', 'path_y']
+    DT [+EVR]   (UI) - User 9 -> test=0.580 train=0.959 (kept 24/47):
+      ['x_std', 'x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_min', 'z_skew', 'speed_mean', 'speed_std', 'speed_max', 'accel_mean', 'arc_length', 'curv_std', 'speed_seg1', 'path_x', 'path_y', 'evr_pc2', 'evr_pc3']
+    Feature selection summary (top-5): ['path_x', 'path_y', 'x_skew', 'x_min', 'y_min']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_dt_ui_d1.csv
+    [(c) Std + PCA denoise] DT: 0.664 +/- 0.106  [3 PCA EVR values added to DT feature vector]
+    RF [+EVR]   (UI) - User 0 -> test=0.820 train=0.996 (kept 25/47):
+      ['x_std', 'x_min', 'x_max', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_min', 'z_max', 'z_range', 'z_skew', 'z_kurt', 'accel_mean', 'arc_length', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc2', 'evr_pc3']
+    RF [+EVR]   (UI) - User 1 -> test=0.760 train=0.978 (kept 7/47):
+      ['x_min', 'y_min', 'y_max', 'y_kurt', 'arc_length', 'path_x', 'path_y']
+    RF [+EVR]   (UI) - User 2 -> test=0.860 train=0.999 (kept 19/47):
+      ['x_max', 'x_skew', 'y_min', 'y_max', 'y_skew', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_max', 'accel_mean', 'accel_std', 'bbox_diag', 'curv_std', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'evr_pc3']
+    RF [+EVR]   (UI) - User 3 -> test=0.900 train=0.982 (kept 8/47):
+      ['x_min', 'x_max', 'x_skew', 'y_kurt', 'speed_seg1', 'path_x', 'path_y', 'evr_pc3']
+    RF [+EVR]   (UI) - User 4 -> test=0.670 train=0.988 (kept 14/47):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'speed_mean', 'speed_std', 'arc_length', 'curv_mean', 'speed_seg2', 'path_x', 'path_y']
+    RF [+EVR]   (UI) - User 5 -> test=0.790 train=0.997 (kept 24/47):
+      ['x_std', 'x_min', 'x_max', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_std', 'z_skew', 'z_kurt', 'speed_std', 'accel_std', 'arc_length', 'bbox_diag', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc3']
+    RF [+EVR]   (UI) - User 6 -> test=0.760 train=0.989 (kept 16/47):
+      ['x_min', 'x_max', 'x_skew', 'y_std', 'y_min', 'y_max', 'z_std', 'z_max', 'z_kurt', 'speed_mean', 'arc_length', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'evr_pc3']
+    RF [+EVR]   (UI) - User 7 -> test=0.870 train=0.996 (kept 18/47):
+      ['x_std', 'x_min', 'x_skew', 'y_min', 'y_max', 'y_skew', 'speed_mean', 'speed_std', 'speed_max', 'accel_mean', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'path_x', 'path_y', 'evr_pc1', 'evr_pc3']
+    RF [+EVR]   (UI) - User 8 -> test=0.780 train=0.929 (kept 9/47):
+      ['x_skew', 'x_kurt', 'z_range', 'speed_min', 'accel_mean', 'arc_length', 'speed_seg1', 'path_x', 'path_y']
+    RF [+EVR]   (UI) - User 9 -> test=0.800 train=0.997 (kept 24/47):
+      ['x_std', 'x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_min', 'z_skew', 'speed_mean', 'speed_std', 'speed_max', 'accel_mean', 'arc_length', 'curv_std', 'speed_seg1', 'path_x', 'path_y', 'evr_pc2', 'evr_pc3']
+    Feature selection summary (top-5): ['path_x', 'path_y', 'x_skew', 'x_min', 'y_min']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_rf_ui_d1.csv
+    [(c) Std + PCA denoise] RF: 0.801 +/- 0.063  [3 PCA EVR values added to RF feature vector]
+    LR [+EVR]   (UI) - User 0 -> test=0.900 train=0.939 (kept 25/47):
+      ['x_std', 'x_min', 'x_max', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_min', 'z_max', 'z_range', 'z_skew', 'z_kurt', 'accel_mean', 'arc_length', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc2', 'evr_pc3']
+    LR [+EVR]   (UI) - User 1 -> test=0.790 train=0.853 (kept 7/47):
+      ['x_min', 'y_min', 'y_max', 'y_kurt', 'arc_length', 'path_x', 'path_y']
+    LR [+EVR]   (UI) - User 2 -> test=0.960 train=0.930 (kept 19/47):
+      ['x_max', 'x_skew', 'y_min', 'y_max', 'y_skew', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_max', 'accel_mean', 'accel_std', 'bbox_diag', 'curv_std', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'evr_pc3']
+    LR [+EVR]   (UI) - User 3 -> test=0.930 train=0.852 (kept 8/47):
+      ['x_min', 'x_max', 'x_skew', 'y_kurt', 'speed_seg1', 'path_x', 'path_y', 'evr_pc3']
+    LR [+EVR]   (UI) - User 4 -> test=0.740 train=0.931 (kept 14/47):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'speed_mean', 'speed_std', 'arc_length', 'curv_mean', 'speed_seg2', 'path_x', 'path_y']
+    LR [+EVR]   (UI) - User 5 -> test=0.890 train=0.954 (kept 24/47):
+      ['x_std', 'x_min', 'x_max', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_std', 'z_skew', 'z_kurt', 'speed_std', 'accel_std', 'arc_length', 'bbox_diag', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc3']
+    LR [+EVR]   (UI) - User 6 -> test=0.740 train=0.968 (kept 16/47):
+      ['x_min', 'x_max', 'x_skew', 'y_std', 'y_min', 'y_max', 'z_std', 'z_max', 'z_kurt', 'speed_mean', 'arc_length', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'evr_pc3']
+    LR [+EVR]   (UI) - User 7 -> test=0.930 train=0.929 (kept 18/47):
+      ['x_std', 'x_min', 'x_skew', 'y_min', 'y_max', 'y_skew', 'speed_mean', 'speed_std', 'speed_max', 'accel_mean', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'path_x', 'path_y', 'evr_pc1', 'evr_pc3']
+    LR [+EVR]   (UI) - User 8 -> test=0.760 train=0.857 (kept 9/47):
+      ['x_skew', 'x_kurt', 'z_range', 'speed_min', 'accel_mean', 'arc_length', 'speed_seg1', 'path_x', 'path_y']
+    LR [+EVR]   (UI) - User 9 -> test=0.780 train=0.971 (kept 24/47):
+      ['x_std', 'x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_min', 'z_skew', 'speed_mean', 'speed_std', 'speed_max', 'accel_mean', 'arc_length', 'curv_std', 'speed_seg1', 'path_x', 'path_y', 'evr_pc2', 'evr_pc3']
+    Feature selection summary (top-5): ['path_x', 'path_y', 'x_skew', 'x_min', 'y_min']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ui_d1.csv
+    [(c) Std + PCA denoise] LR: 0.842 +/- 0.083  [3 PCA EVR values added to LR feature vector]
+    $1   (UI) - User 0 held out -> acc = 0.910
+    $1   (UI) - User 1 held out -> acc = 0.860
+    $1   (UI) - User 2 held out -> acc = 0.980
+    $1   (UI) - User 3 held out -> acc = 0.980
+    $1   (UI) - User 4 held out -> acc = 0.780
+    $1   (UI) - User 5 held out -> acc = 0.780
+    $1   (UI) - User 6 held out -> acc = 0.780
+    $1   (UI) - User 7 held out -> acc = 0.890
+    $1   (UI) - User 8 held out -> acc = 0.770
+    $1   (UI) - User 9 held out -> acc = 0.930
+    [(c) Std + PCA denoise] $1: 0.866 +/- 0.080
+
+  ------------------------------------------------------------
+  Best preprocessing per method - Domain 1 (UI):
+  ------------------------------------------------------------
+    Edit Distance   : (b) Standardisation  (mean acc = 0.864 +/- 0.135)
+    DTW             : (b) Standardisation  (mean acc = 0.918 +/- 0.097)
+    DT              : (b) Standardisation  (mean acc = 0.825 +/- 0.068)
+    RF              : (b) Standardisation  (mean acc = 0.890 +/- 0.070)
+    LR              : (b) Standardisation  (mean acc = 0.858 +/- 0.113)
+    $1              : (a) No preprocessing  (mean acc = 0.993 +/- 0.010)
+
+  Ablation summary - Domain 1 (UI):
+Method                              $1               DT              DTW    Edit Distance               LR               RF
+Preprocessing                                                                                                              
+(a) No preprocessing   0.993 +/- 0.010  0.662 +/- 0.071  0.624 +/- 0.167  0.554 +/- 0.166  0.854 +/- 0.101  0.776 +/- 0.085
+(b) Standardisation    0.890 +/- 0.082  0.825 +/- 0.068  0.918 +/- 0.097  0.864 +/- 0.135  0.858 +/- 0.113  0.890 +/- 0.070
+(c) Std + PCA denoise  0.866 +/- 0.080  0.664 +/- 0.106  0.879 +/- 0.108  0.845 +/- 0.134  0.842 +/- 0.083  0.801 +/- 0.063
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/ablation/ablation_domain1_ui.csv
+
+=== Ablation Study - Domain 1 - User-Dependent ===
+
+=================================================================
+  ABLATION STUDY | Domain 1 | User-dependent
+=================================================================
+
+  (a) No preprocessing
+    Edit (UD) - Fold 0 -> acc = 0.860
+    Edit (UD) - Fold 1 -> acc = 0.960
+    Edit (UD) - Fold 2 -> acc = 0.960
+    Edit (UD) - Fold 3 -> acc = 1.000
+    Edit (UD) - Fold 4 -> acc = 0.950
+    Edit (UD) - Fold 5 -> acc = 0.980
+    Edit (UD) - Fold 6 -> acc = 0.970
+    Edit (UD) - Fold 7 -> acc = 0.990
+    Edit (UD) - Fold 8 -> acc = 0.980
+    Edit (UD) - Fold 9 -> acc = 0.980
+    [(a) No preprocessing] Edit Distance: 0.963 +/- 0.037
+    DTW  (UD) - Fold 0 -> acc = 0.920
+    DTW  (UD) - Fold 1 -> acc = 0.970
+    DTW  (UD) - Fold 2 -> acc = 0.970
+    DTW  (UD) - Fold 3 -> acc = 0.990
+    DTW  (UD) - Fold 4 -> acc = 0.990
+    DTW  (UD) - Fold 5 -> acc = 0.980
+    DTW  (UD) - Fold 6 -> acc = 1.000
+    DTW  (UD) - Fold 7 -> acc = 0.970
+    DTW  (UD) - Fold 8 -> acc = 1.000
+    DTW  (UD) - Fold 9 -> acc = 0.990
+    [(a) No preprocessing] DTW: 0.978 +/- 0.022
+    DT [no EVR]   (UD) - Fold 0 -> test=0.720 train=0.908 (kept 8/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'z_skew', 'speed_seg1', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 1 -> test=0.870 train=0.916 (kept 10/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'arc_length', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 2 -> test=0.720 train=0.842 (kept 8/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'speed_mean', 'speed_seg1', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 3 -> test=0.790 train=0.881 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 4 -> test=0.760 train=0.922 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 5 -> test=0.860 train=0.947 (kept 7/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 6 -> test=0.780 train=0.901 (kept 17/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_std', 'y_range', 'y_skew', 'y_kurt', 'z_range', 'z_kurt', 'arc_length', 'curv_std', 'curv_total', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 7 -> test=0.830 train=0.918 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 8 -> test=0.880 train=0.904 (kept 9/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'z_skew', 'z_kurt', 'curv_std', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 9 -> test=0.850 train=0.947 (kept 9/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'curv_std', 'speed_seg1', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_dt_ud_d1.csv
+    [(a) No preprocessing] DT: 0.806 +/- 0.057
+    RF [no EVR]   (UD) - Fold 0 -> test=0.850 train=0.986 (kept 8/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'z_skew', 'speed_seg1', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 1 -> test=0.940 train=0.980 (kept 10/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'arc_length', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 2 -> test=0.870 train=0.993 (kept 8/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'speed_mean', 'speed_seg1', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 3 -> test=0.870 train=0.982 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 4 -> test=0.950 train=0.984 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 5 -> test=0.950 train=0.974 (kept 7/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 6 -> test=0.920 train=0.991 (kept 17/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_std', 'y_range', 'y_skew', 'y_kurt', 'z_range', 'z_kurt', 'arc_length', 'curv_std', 'curv_total', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 7 -> test=0.880 train=0.984 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 8 -> test=0.940 train=0.988 (kept 9/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'z_skew', 'z_kurt', 'curv_std', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 9 -> test=0.940 train=0.982 (kept 9/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'curv_std', 'speed_seg1', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_rf_ud_d1.csv
+    [(a) No preprocessing] RF: 0.911 +/- 0.037
+    LR [no EVR]   (UD) - Fold 0 -> test=0.810 train=0.884 (kept 8/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'z_skew', 'speed_seg1', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 1 -> test=0.940 train=0.978 (kept 10/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'arc_length', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 2 -> test=0.810 train=0.903 (kept 8/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'speed_mean', 'speed_seg1', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 3 -> test=0.820 train=0.869 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 4 -> test=0.900 train=0.873 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 5 -> test=0.940 train=0.954 (kept 7/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 6 -> test=0.970 train=0.982 (kept 17/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_std', 'y_range', 'y_skew', 'y_kurt', 'z_range', 'z_kurt', 'arc_length', 'curv_std', 'curv_total', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 7 -> test=0.870 train=0.869 (kept 6/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 8 -> test=0.940 train=0.880 (kept 9/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'z_skew', 'z_kurt', 'curv_std', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 9 -> test=0.970 train=0.964 (kept 9/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'curv_std', 'speed_seg1', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ud_d1.csv
+    [(a) No preprocessing] LR: 0.897 +/- 0.062
+    $1   (UD) - Fold 0 -> acc = 1.000
+    $1   (UD) - Fold 1 -> acc = 0.990
+    $1   (UD) - Fold 2 -> acc = 1.000
+    $1   (UD) - Fold 3 -> acc = 1.000
+    $1   (UD) - Fold 4 -> acc = 1.000
+    $1   (UD) - Fold 5 -> acc = 1.000
+    $1   (UD) - Fold 6 -> acc = 1.000
+    $1   (UD) - Fold 7 -> acc = 1.000
+    $1   (UD) - Fold 8 -> acc = 1.000
+    $1   (UD) - Fold 9 -> acc = 1.000
+    [(a) No preprocessing] $1: 0.999 +/- 0.003
+
+  (b) Standardisation only
+    Edit (UD) - Fold 0 -> acc = 0.950
+    Edit (UD) - Fold 1 -> acc = 0.990
+    Edit (UD) - Fold 2 -> acc = 0.960
+    Edit (UD) - Fold 3 -> acc = 0.980
+    Edit (UD) - Fold 4 -> acc = 0.980
+    Edit (UD) - Fold 5 -> acc = 1.000
+    Edit (UD) - Fold 6 -> acc = 0.990
+    Edit (UD) - Fold 7 -> acc = 0.980
+    Edit (UD) - Fold 8 -> acc = 0.980
+    Edit (UD) - Fold 9 -> acc = 0.970
+    [(b) Standardisation] Edit Distance: 0.978 +/- 0.014
+    DTW  (UD) - Fold 0 -> acc = 0.970
+    DTW  (UD) - Fold 1 -> acc = 0.990
+    DTW  (UD) - Fold 2 -> acc = 0.990
+    DTW  (UD) - Fold 3 -> acc = 1.000
+    DTW  (UD) - Fold 4 -> acc = 1.000
+    DTW  (UD) - Fold 5 -> acc = 0.980
+    DTW  (UD) - Fold 6 -> acc = 0.990
+    DTW  (UD) - Fold 7 -> acc = 1.000
+    DTW  (UD) - Fold 8 -> acc = 0.980
+    DTW  (UD) - Fold 9 -> acc = 0.980
+    [(b) Standardisation] DTW: 0.988 +/- 0.010
+    DT [no EVR]   (UD) - Fold 0 -> test=0.840 train=0.948 (kept 9/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'arc_length', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 1 -> test=0.900 train=0.970 (kept 10/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'bbox_diag', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 2 -> test=0.730 train=0.898 (kept 4/44):
+      ['y_min', 'y_max', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 3 -> test=0.930 train=0.969 (kept 7/44):
+      ['x_min', 'x_kurt', 'y_min', 'y_max', 'arc_length', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 4 -> test=0.840 train=0.914 (kept 8/44):
+      ['x_min', 'x_skew', 'y_max', 'y_range', 'arc_length', 'bbox_diag', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 5 -> test=0.870 train=0.906 (kept 3/44):
+      ['y_max', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 6 -> test=0.840 train=0.927 (kept 5/44):
+      ['x_kurt', 'y_min', 'y_max', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 7 -> test=0.880 train=0.969 (kept 7/44):
+      ['x_kurt', 'y_min', 'y_max', 'y_skew', 'arc_length', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 8 -> test=0.910 train=0.957 (kept 6/44):
+      ['x_min', 'x_kurt', 'y_min', 'y_max', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 9 -> test=0.910 train=0.964 (kept 6/44):
+      ['x_kurt', 'y_min', 'y_max', 'speed_seg2', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['y_max', 'path_x', 'path_y', 'y_min', 'x_kurt']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_dt_ud_d1.csv
+    [(b) Standardisation] DT: 0.865 +/- 0.055
+    RF [no EVR]   (UD) - Fold 0 -> test=0.930 train=0.992 (kept 9/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'arc_length', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 1 -> test=0.960 train=0.987 (kept 10/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'bbox_diag', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 2 -> test=0.760 train=0.894 (kept 4/44):
+      ['y_min', 'y_max', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 3 -> test=0.970 train=0.987 (kept 7/44):
+      ['x_min', 'x_kurt', 'y_min', 'y_max', 'arc_length', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 4 -> test=0.940 train=0.993 (kept 8/44):
+      ['x_min', 'x_skew', 'y_max', 'y_range', 'arc_length', 'bbox_diag', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 5 -> test=0.850 train=0.948 (kept 3/44):
+      ['y_max', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 6 -> test=0.930 train=0.969 (kept 5/44):
+      ['x_kurt', 'y_min', 'y_max', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 7 -> test=0.910 train=0.986 (kept 7/44):
+      ['x_kurt', 'y_min', 'y_max', 'y_skew', 'arc_length', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 8 -> test=0.940 train=0.991 (kept 6/44):
+      ['x_min', 'x_kurt', 'y_min', 'y_max', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 9 -> test=0.920 train=0.976 (kept 6/44):
+      ['x_kurt', 'y_min', 'y_max', 'speed_seg2', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['y_max', 'path_x', 'path_y', 'y_min', 'x_kurt']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_rf_ud_d1.csv
+    [(b) Standardisation] RF: 0.911 +/- 0.059
+    LR [no EVR]   (UD) - Fold 0 -> test=0.910 train=0.954 (kept 9/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'arc_length', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 1 -> test=0.940 train=0.951 (kept 10/44):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'bbox_diag', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 2 -> test=0.800 train=0.838 (kept 4/44):
+      ['y_min', 'y_max', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 3 -> test=0.940 train=0.948 (kept 7/44):
+      ['x_min', 'x_kurt', 'y_min', 'y_max', 'arc_length', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 4 -> test=0.940 train=0.946 (kept 8/44):
+      ['x_min', 'x_skew', 'y_max', 'y_range', 'arc_length', 'bbox_diag', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 5 -> test=0.820 train=0.798 (kept 3/44):
+      ['y_max', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 6 -> test=0.870 train=0.918 (kept 5/44):
+      ['x_kurt', 'y_min', 'y_max', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 7 -> test=0.920 train=0.932 (kept 7/44):
+      ['x_kurt', 'y_min', 'y_max', 'y_skew', 'arc_length', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 8 -> test=0.920 train=0.942 (kept 6/44):
+      ['x_min', 'x_kurt', 'y_min', 'y_max', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 9 -> test=0.900 train=0.913 (kept 6/44):
+      ['x_kurt', 'y_min', 'y_max', 'speed_seg2', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['y_max', 'path_x', 'path_y', 'y_min', 'x_kurt']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ud_d1.csv
+    [(b) Standardisation] LR: 0.896 +/- 0.048
+    $1   (UD) - Fold 0 -> acc = 0.930
+    $1   (UD) - Fold 1 -> acc = 0.950
+    $1   (UD) - Fold 2 -> acc = 0.930
+    $1   (UD) - Fold 3 -> acc = 0.970
+    $1   (UD) - Fold 4 -> acc = 0.970
+    $1   (UD) - Fold 5 -> acc = 0.970
+    $1   (UD) - Fold 6 -> acc = 0.960
+    $1   (UD) - Fold 7 -> acc = 0.970
+    $1   (UD) - Fold 8 -> acc = 0.980
+    $1   (UD) - Fold 9 -> acc = 0.960
+    [(b) Standardisation] $1: 0.959 +/- 0.016
+
+  (c) Standardisation + PCA denoising 3D->2D->3D
+    Edit (UD) - Fold 0 -> acc = 0.960
+    Edit (UD) - Fold 1 -> acc = 0.990
+    Edit (UD) - Fold 2 -> acc = 0.970
+    Edit (UD) - Fold 3 -> acc = 0.990
+    Edit (UD) - Fold 4 -> acc = 0.970
+    Edit (UD) - Fold 5 -> acc = 0.990
+    Edit (UD) - Fold 6 -> acc = 0.980
+    Edit (UD) - Fold 7 -> acc = 0.940
+    Edit (UD) - Fold 8 -> acc = 0.950
+    Edit (UD) - Fold 9 -> acc = 0.980
+    [(c) Std + PCA denoise] Edit Distance: 0.972 +/- 0.017
+    DTW  (UD) - Fold 0 -> acc = 0.960
+    DTW  (UD) - Fold 1 -> acc = 0.970
+    DTW  (UD) - Fold 2 -> acc = 0.950
+    DTW  (UD) - Fold 3 -> acc = 0.980
+    DTW  (UD) - Fold 4 -> acc = 0.980
+    DTW  (UD) - Fold 5 -> acc = 0.990
+    DTW  (UD) - Fold 6 -> acc = 0.970
+    DTW  (UD) - Fold 7 -> acc = 0.960
+    DTW  (UD) - Fold 8 -> acc = 0.960
+    DTW  (UD) - Fold 9 -> acc = 0.950
+    [(c) Std + PCA denoise] DTW: 0.967 +/- 0.013
+    DT [+EVR]   (UD) - Fold 0 -> test=0.560 train=0.688 (kept 2/47):
+      ['path_x', 'path_y']
+    DT [+EVR]   (UD) - Fold 1 -> test=0.780 train=0.906 (kept 19/47):
+      ['x_std', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'z_std', 'speed_mean', 'speed_std', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'evr_pc1', 'evr_pc3']
+    DT [+EVR]   (UD) - Fold 2 -> test=0.690 train=0.920 (kept 17/47):
+      ['x_min', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'z_range', 'arc_length', 'bbox_diag', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    DT [+EVR]   (UD) - Fold 3 -> test=0.770 train=0.898 (kept 14/47):
+      ['x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'evr_pc1']
+    DT [+EVR]   (UD) - Fold 4 -> test=0.820 train=0.918 (kept 9/47):
+      ['x_kurt', 'y_min', 'z_std', 'z_max', 'arc_length', 'curv_total', 'speed_seg1', 'path_x', 'path_y']
+    DT [+EVR]   (UD) - Fold 5 -> test=0.830 train=0.903 (kept 9/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_kurt', 'z_range', 'arc_length', 'curv_std', 'path_x', 'path_y']
+    DT [+EVR]   (UD) - Fold 6 -> test=0.710 train=0.873 (kept 6/47):
+      ['x_min', 'x_max', 'y_min', 'arc_length', 'path_x', 'path_y']
+    DT [+EVR]   (UD) - Fold 7 -> test=0.790 train=0.897 (kept 18/47):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'z_max', 'arc_length', 'bbox_diag', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    DT [+EVR]   (UD) - Fold 8 -> test=0.740 train=0.871 (kept 14/47):
+      ['x_std', 'y_min', 'y_skew', 'z_min', 'z_skew', 'speed_mean', 'arc_length', 'bbox_diag', 'curv_std', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'evr_pc3']
+    DT [+EVR]   (UD) - Fold 9 -> test=0.720 train=0.882 (kept 7/47):
+      ['x_skew', 'x_kurt', 'y_min', 'arc_length', 'speed_seg1', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['path_x', 'path_y', 'y_min', 'arc_length', 'x_kurt']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_dt_ud_d1.csv
+    [(c) Std + PCA denoise] DT: 0.741 +/- 0.075  [3 PCA EVR values added to DT feature vector]
+    RF [+EVR]   (UD) - Fold 0 -> test=0.600 train=0.751 (kept 2/47):
+      ['path_x', 'path_y']
+    RF [+EVR]   (UD) - Fold 1 -> test=0.880 train=0.996 (kept 19/47):
+      ['x_std', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'z_std', 'speed_mean', 'speed_std', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'evr_pc1', 'evr_pc3']
+    RF [+EVR]   (UD) - Fold 2 -> test=0.820 train=0.996 (kept 17/47):
+      ['x_min', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'z_range', 'arc_length', 'bbox_diag', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    RF [+EVR]   (UD) - Fold 3 -> test=0.920 train=0.990 (kept 14/47):
+      ['x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'evr_pc1']
+    RF [+EVR]   (UD) - Fold 4 -> test=0.870 train=0.974 (kept 9/47):
+      ['x_kurt', 'y_min', 'z_std', 'z_max', 'arc_length', 'curv_total', 'speed_seg1', 'path_x', 'path_y']
+    RF [+EVR]   (UD) - Fold 5 -> test=0.910 train=0.983 (kept 9/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_kurt', 'z_range', 'arc_length', 'curv_std', 'path_x', 'path_y']
+    RF [+EVR]   (UD) - Fold 6 -> test=0.770 train=0.971 (kept 6/47):
+      ['x_min', 'x_max', 'y_min', 'arc_length', 'path_x', 'path_y']
+    RF [+EVR]   (UD) - Fold 7 -> test=0.910 train=0.993 (kept 18/47):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'z_max', 'arc_length', 'bbox_diag', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    RF [+EVR]   (UD) - Fold 8 -> test=0.870 train=0.978 (kept 14/47):
+      ['x_std', 'y_min', 'y_skew', 'z_min', 'z_skew', 'speed_mean', 'arc_length', 'bbox_diag', 'curv_std', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'evr_pc3']
+    RF [+EVR]   (UD) - Fold 9 -> test=0.860 train=0.977 (kept 7/47):
+      ['x_skew', 'x_kurt', 'y_min', 'arc_length', 'speed_seg1', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['path_x', 'path_y', 'y_min', 'arc_length', 'x_kurt']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_rf_ud_d1.csv
+    [(c) Std + PCA denoise] RF: 0.841 +/- 0.091  [3 PCA EVR values added to RF feature vector]
+    LR [+EVR]   (UD) - Fold 0 -> test=0.580 train=0.590 (kept 2/47):
+      ['path_x', 'path_y']
+    LR [+EVR]   (UD) - Fold 1 -> test=0.880 train=0.952 (kept 19/47):
+      ['x_std', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'z_std', 'speed_mean', 'speed_std', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'evr_pc1', 'evr_pc3']
+    LR [+EVR]   (UD) - Fold 2 -> test=0.850 train=0.938 (kept 17/47):
+      ['x_min', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'z_range', 'arc_length', 'bbox_diag', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    LR [+EVR]   (UD) - Fold 3 -> test=0.890 train=0.852 (kept 14/47):
+      ['x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'evr_pc1']
+    LR [+EVR]   (UD) - Fold 4 -> test=0.850 train=0.834 (kept 9/47):
+      ['x_kurt', 'y_min', 'z_std', 'z_max', 'arc_length', 'curv_total', 'speed_seg1', 'path_x', 'path_y']
+    LR [+EVR]   (UD) - Fold 5 -> test=0.860 train=0.879 (kept 9/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_kurt', 'z_range', 'arc_length', 'curv_std', 'path_x', 'path_y']
+    LR [+EVR]   (UD) - Fold 6 -> test=0.770 train=0.849 (kept 6/47):
+      ['x_min', 'x_max', 'y_min', 'arc_length', 'path_x', 'path_y']
+    LR [+EVR]   (UD) - Fold 7 -> test=0.930 train=0.930 (kept 18/47):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'z_max', 'arc_length', 'bbox_diag', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    LR [+EVR]   (UD) - Fold 8 -> test=0.900 train=0.923 (kept 14/47):
+      ['x_std', 'y_min', 'y_skew', 'z_min', 'z_skew', 'speed_mean', 'arc_length', 'bbox_diag', 'curv_std', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'evr_pc3']
+    LR [+EVR]   (UD) - Fold 9 -> test=0.850 train=0.866 (kept 7/47):
+      ['x_skew', 'x_kurt', 'y_min', 'arc_length', 'speed_seg1', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['path_x', 'path_y', 'y_min', 'arc_length', 'x_kurt']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ud_d1.csv
+    [(c) Std + PCA denoise] LR: 0.836 +/- 0.094  [3 PCA EVR values added to LR feature vector]
+    $1   (UD) - Fold 0 -> acc = 0.920
+    $1   (UD) - Fold 1 -> acc = 0.890
+    $1   (UD) - Fold 2 -> acc = 0.910
+    $1   (UD) - Fold 3 -> acc = 0.960
+    $1   (UD) - Fold 4 -> acc = 0.920
+    $1   (UD) - Fold 5 -> acc = 0.930
+    $1   (UD) - Fold 6 -> acc = 0.930
+    $1   (UD) - Fold 7 -> acc = 0.950
+    $1   (UD) - Fold 8 -> acc = 0.950
+    $1   (UD) - Fold 9 -> acc = 0.950
+    [(c) Std + PCA denoise] $1: 0.931 +/- 0.021
+
+  ------------------------------------------------------------
+  Best preprocessing per method - Domain 1 (UD):
+  ------------------------------------------------------------
+    Edit Distance   : (b) Standardisation  (mean acc = 0.978 +/- 0.014)
+    DTW             : (b) Standardisation  (mean acc = 0.988 +/- 0.010)
+    DT              : (b) Standardisation  (mean acc = 0.865 +/- 0.055)
+    RF              : (a) No preprocessing  (mean acc = 0.911 +/- 0.037)
+    LR              : (a) No preprocessing  (mean acc = 0.897 +/- 0.062)
+    $1              : (a) No preprocessing  (mean acc = 0.999 +/- 0.003)
+
+  Ablation summary - Domain 1 (UD):
+Method                              $1               DT              DTW    Edit Distance               LR               RF
+Preprocessing                                                                                                              
+(a) No preprocessing   0.999 +/- 0.003  0.806 +/- 0.057  0.978 +/- 0.022  0.963 +/- 0.037  0.897 +/- 0.062  0.911 +/- 0.037
+(b) Standardisation    0.959 +/- 0.016  0.865 +/- 0.055  0.988 +/- 0.010  0.978 +/- 0.014  0.896 +/- 0.048  0.911 +/- 0.059
+(c) Std + PCA denoise  0.931 +/- 0.021  0.741 +/- 0.075  0.967 +/- 0.013  0.972 +/- 0.017  0.836 +/- 0.094  0.841 +/- 0.091
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/ablation/ablation_domain1_ud.csv
+
+=== Ablation Study - Domain 4 - User-Independent ===
+
+=================================================================
+  ABLATION STUDY | Domain 4 | User-independent
+=================================================================
+
+  (a) No preprocessing
+    Edit (UI) - User 0 held out -> acc = 0.570
+    Edit (UI) - User 1 held out -> acc = 0.210
+    Edit (UI) - User 2 held out -> acc = 0.590
+    Edit (UI) - User 3 held out -> acc = 0.230
+    Edit (UI) - User 4 held out -> acc = 0.660
+    Edit (UI) - User 5 held out -> acc = 0.380
+    Edit (UI) - User 6 held out -> acc = 0.500
+    Edit (UI) - User 7 held out -> acc = 0.490
+    Edit (UI) - User 8 held out -> acc = 0.430
+    Edit (UI) - User 9 held out -> acc = 0.360
+    [(a) No preprocessing] Edit Distance: 0.442 +/- 0.142
+    DTW  (UI) - User 0 held out -> acc = 0.440
+    DTW  (UI) - User 1 held out -> acc = 0.280
+    DTW  (UI) - User 2 held out -> acc = 0.520
+    DTW  (UI) - User 3 held out -> acc = 0.720
+    DTW  (UI) - User 4 held out -> acc = 0.570
+    DTW  (UI) - User 5 held out -> acc = 0.540
+    DTW  (UI) - User 6 held out -> acc = 0.520
+    DTW  (UI) - User 7 held out -> acc = 0.480
+    DTW  (UI) - User 8 held out -> acc = 0.460
+    DTW  (UI) - User 9 held out -> acc = 0.330
+    [(a) No preprocessing] DTW: 0.486 +/- 0.117
+    DT [no EVR]   (UI) - User 0 -> test=0.740 train=0.892 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    DT [no EVR]   (UI) - User 1 -> test=0.780 train=0.937 (kept 6/44):
+      ['x_kurt', 'y_std', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']
+    DT [no EVR]   (UI) - User 2 -> test=0.780 train=0.960 (kept 15/44):
+      ['x_std', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_range', 'z_skew', 'z_kurt', 'speed_max', 'speed_min', 'path_y']
+    DT [no EVR]   (UI) - User 3 -> test=0.440 train=0.922 (kept 16/44):
+      ['x_mean', 'x_std', 'x_range', 'x_skew', 'x_kurt', 'y_mean', 'y_std', 'y_skew', 'y_kurt', 'z_std', 'z_max', 'z_kurt', 'speed_mean', 'speed_seg3', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 4 -> test=0.640 train=0.881 (kept 5/44):
+      ['x_kurt', 'y_std', 'y_skew', 'y_kurt', 'z_kurt']
+    DT [no EVR]   (UI) - User 5 -> test=0.630 train=0.972 (kept 22/44):
+      ['x_std', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_range', 'z_kurt', 'speed_mean', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z']
+    DT [no EVR]   (UI) - User 6 -> test=0.760 train=0.969 (kept 7/44):
+      ['x_kurt', 'y_std', 'y_skew', 'y_kurt', 'z_std', 'z_kurt', 'path_y']
+    DT [no EVR]   (UI) - User 7 -> test=0.740 train=0.966 (kept 5/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']
+    DT [no EVR]   (UI) - User 8 -> test=0.720 train=0.964 (kept 6/44):
+      ['x_std', 'x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']
+    DT [no EVR]   (UI) - User 9 -> test=0.790 train=0.956 (kept 9/44):
+      ['x_std', 'x_max', 'x_kurt', 'y_skew', 'y_kurt', 'z_std', 'z_kurt', 'speed_seg3', 'path_y']
+    Feature selection summary (top-5): ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_dt_ui_d4.csv
+    [(a) No preprocessing] DT: 0.702 +/- 0.102
+    RF [no EVR]   (UI) - User 0 -> test=0.810 train=0.963 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    RF [no EVR]   (UI) - User 1 -> test=0.860 train=0.989 (kept 6/44):
+      ['x_kurt', 'y_std', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']
+    RF [no EVR]   (UI) - User 2 -> test=0.890 train=0.998 (kept 15/44):
+      ['x_std', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_range', 'z_skew', 'z_kurt', 'speed_max', 'speed_min', 'path_y']
+    RF [no EVR]   (UI) - User 3 -> test=0.640 train=0.996 (kept 16/44):
+      ['x_mean', 'x_std', 'x_range', 'x_skew', 'x_kurt', 'y_mean', 'y_std', 'y_skew', 'y_kurt', 'z_std', 'z_max', 'z_kurt', 'speed_mean', 'speed_seg3', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 4 -> test=0.710 train=0.986 (kept 5/44):
+      ['x_kurt', 'y_std', 'y_skew', 'y_kurt', 'z_kurt']
+    RF [no EVR]   (UI) - User 5 -> test=0.820 train=0.998 (kept 22/44):
+      ['x_std', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_range', 'z_kurt', 'speed_mean', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z']
+    RF [no EVR]   (UI) - User 6 -> test=0.850 train=0.992 (kept 7/44):
+      ['x_kurt', 'y_std', 'y_skew', 'y_kurt', 'z_std', 'z_kurt', 'path_y']
+    RF [no EVR]   (UI) - User 7 -> test=0.850 train=0.987 (kept 5/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']
+    RF [no EVR]   (UI) - User 8 -> test=0.850 train=0.991 (kept 6/44):
+      ['x_std', 'x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']
+    RF [no EVR]   (UI) - User 9 -> test=0.860 train=0.987 (kept 9/44):
+      ['x_std', 'x_max', 'x_kurt', 'y_skew', 'y_kurt', 'z_std', 'z_kurt', 'speed_seg3', 'path_y']
+    Feature selection summary (top-5): ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_rf_ui_d4.csv
+    [(a) No preprocessing] RF: 0.814 +/- 0.074
+    LR [no EVR]   (UI) - User 0 -> test=0.830 train=0.819 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    LR [no EVR]   (UI) - User 1 -> test=0.840 train=0.923 (kept 6/44):
+      ['x_kurt', 'y_std', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']
+    LR [no EVR]   (UI) - User 2 -> test=0.880 train=0.983 (kept 15/44):
+      ['x_std', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_range', 'z_skew', 'z_kurt', 'speed_max', 'speed_min', 'path_y']
+    LR [no EVR]   (UI) - User 3 -> test=0.730 train=0.990 (kept 16/44):
+      ['x_mean', 'x_std', 'x_range', 'x_skew', 'x_kurt', 'y_mean', 'y_std', 'y_skew', 'y_kurt', 'z_std', 'z_max', 'z_kurt', 'speed_mean', 'speed_seg3', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 4 -> test=0.790 train=0.877 (kept 5/44):
+      ['x_kurt', 'y_std', 'y_skew', 'y_kurt', 'z_kurt']
+    LR [no EVR]   (UI) - User 5 -> test=0.880 train=0.993 (kept 22/44):
+      ['x_std', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_range', 'z_kurt', 'speed_mean', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z']
+    LR [no EVR]   (UI) - User 6 -> test=0.950 train=0.932 (kept 7/44):
+      ['x_kurt', 'y_std', 'y_skew', 'y_kurt', 'z_std', 'z_kurt', 'path_y']
+    LR [no EVR]   (UI) - User 7 -> test=0.810 train=0.872 (kept 5/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']
+    LR [no EVR]   (UI) - User 8 -> test=0.820 train=0.894 (kept 6/44):
+      ['x_std', 'x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']
+    LR [no EVR]   (UI) - User 9 -> test=0.830 train=0.929 (kept 9/44):
+      ['x_std', 'x_max', 'x_kurt', 'y_skew', 'y_kurt', 'z_std', 'z_kurt', 'speed_seg3', 'path_y']
+    Feature selection summary (top-5): ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ui_d4.csv
+    [(a) No preprocessing] LR: 0.836 +/- 0.056
+    $1   (UI) - User 0 held out -> acc = 0.800
+    $1   (UI) - User 1 held out -> acc = 0.800
+    $1   (UI) - User 2 held out -> acc = 0.750
+    $1   (UI) - User 3 held out -> acc = 0.840
+    $1   (UI) - User 4 held out -> acc = 0.730
+    $1   (UI) - User 5 held out -> acc = 0.870
+    $1   (UI) - User 6 held out -> acc = 0.980
+    $1   (UI) - User 7 held out -> acc = 0.830
+    $1   (UI) - User 8 held out -> acc = 0.920
+    $1   (UI) - User 9 held out -> acc = 0.680
+    [(a) No preprocessing] $1: 0.820 +/- 0.085
+
+  (b) Standardisation only
+    Edit (UI) - User 0 held out -> acc = 0.900
+    Edit (UI) - User 1 held out -> acc = 0.750
+    Edit (UI) - User 2 held out -> acc = 0.850
+    Edit (UI) - User 3 held out -> acc = 0.730
+    Edit (UI) - User 4 held out -> acc = 0.890
+    Edit (UI) - User 5 held out -> acc = 0.860
+    Edit (UI) - User 6 held out -> acc = 0.940
+    Edit (UI) - User 7 held out -> acc = 0.860
+    Edit (UI) - User 8 held out -> acc = 0.950
+    Edit (UI) - User 9 held out -> acc = 0.840
+    [(b) Standardisation] Edit Distance: 0.857 +/- 0.068
+    DTW  (UI) - User 0 held out -> acc = 0.890
+    DTW  (UI) - User 1 held out -> acc = 0.870
+    DTW  (UI) - User 2 held out -> acc = 0.880
+    DTW  (UI) - User 3 held out -> acc = 0.900
+    DTW  (UI) - User 4 held out -> acc = 0.800
+    DTW  (UI) - User 5 held out -> acc = 0.830
+    DTW  (UI) - User 6 held out -> acc = 0.950
+    DTW  (UI) - User 7 held out -> acc = 0.830
+    DTW  (UI) - User 8 held out -> acc = 1.000
+    DTW  (UI) - User 9 held out -> acc = 0.700
+    [(b) Standardisation] DTW: 0.865 +/- 0.078
+    DT [no EVR]   (UI) - User 0 -> test=0.570 train=0.886 (kept 3/44):
+      ['x_kurt', 'y_min', 'path_y']
+    DT [no EVR]   (UI) - User 1 -> test=0.820 train=0.971 (kept 7/44):
+      ['x_kurt', 'y_min', 'y_kurt', 'z_kurt', 'bbox_diag', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 2 -> test=0.870 train=0.949 (kept 14/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_max', 'z_kurt', 'speed_mean', 'speed_std', 'arc_length', 'bbox_diag', 'speed_seg3', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 3 -> test=0.690 train=0.981 (kept 10/44):
+      ['x_kurt', 'y_min', 'y_skew', 'y_kurt', 'z_kurt', 'speed_mean', 'arc_length', 'bbox_diag', 'speed_seg1', 'path_y']
+    DT [no EVR]   (UI) - User 4 -> test=0.690 train=0.893 (kept 6/44):
+      ['x_range', 'y_min', 'y_kurt', 'arc_length', 'bbox_diag', 'path_y']
+    DT [no EVR]   (UI) - User 5 -> test=0.780 train=0.977 (kept 11/44):
+      ['x_min', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_kurt', 'arc_length', 'bbox_diag', 'path_x', 'path_y', 'path_z']
+    DT [no EVR]   (UI) - User 6 -> test=0.870 train=0.936 (kept 16/44):
+      ['x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'arc_length', 'bbox_diag', 'speed_seg3', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 7 -> test=0.720 train=0.892 (kept 6/44):
+      ['x_range', 'y_min', 'y_kurt', 'arc_length', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 8 -> test=0.890 train=0.940 (kept 14/44):
+      ['x_min', 'x_max', 'x_range', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_min', 'arc_length', 'curv_std', 'speed_seg3', 'path_x', 'path_y']
+    DT [no EVR]   (UI) - User 9 -> test=0.780 train=0.941 (kept 12/44):
+      ['x_min', 'x_range', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_kurt', 'arc_length', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['y_min', 'path_y', 'y_kurt', 'x_kurt', 'arc_length']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_dt_ui_d4.csv
+    [(b) Standardisation] DT: 0.768 +/- 0.096
+    RF [no EVR]   (UI) - User 0 -> test=0.620 train=0.836 (kept 3/44):
+      ['x_kurt', 'y_min', 'path_y']
+    RF [no EVR]   (UI) - User 1 -> test=0.850 train=0.996 (kept 7/44):
+      ['x_kurt', 'y_min', 'y_kurt', 'z_kurt', 'bbox_diag', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 2 -> test=0.870 train=0.997 (kept 14/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_max', 'z_kurt', 'speed_mean', 'speed_std', 'arc_length', 'bbox_diag', 'speed_seg3', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 3 -> test=0.780 train=0.997 (kept 10/44):
+      ['x_kurt', 'y_min', 'y_skew', 'y_kurt', 'z_kurt', 'speed_mean', 'arc_length', 'bbox_diag', 'speed_seg1', 'path_y']
+    RF [no EVR]   (UI) - User 4 -> test=0.830 train=0.989 (kept 6/44):
+      ['x_range', 'y_min', 'y_kurt', 'arc_length', 'bbox_diag', 'path_y']
+    RF [no EVR]   (UI) - User 5 -> test=0.800 train=0.996 (kept 11/44):
+      ['x_min', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_kurt', 'arc_length', 'bbox_diag', 'path_x', 'path_y', 'path_z']
+    RF [no EVR]   (UI) - User 6 -> test=0.970 train=0.999 (kept 16/44):
+      ['x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'arc_length', 'bbox_diag', 'speed_seg3', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 7 -> test=0.680 train=0.991 (kept 6/44):
+      ['x_range', 'y_min', 'y_kurt', 'arc_length', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 8 -> test=0.990 train=0.996 (kept 14/44):
+      ['x_min', 'x_max', 'x_range', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_min', 'arc_length', 'curv_std', 'speed_seg3', 'path_x', 'path_y']
+    RF [no EVR]   (UI) - User 9 -> test=0.940 train=0.996 (kept 12/44):
+      ['x_min', 'x_range', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_kurt', 'arc_length', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['y_min', 'path_y', 'y_kurt', 'x_kurt', 'arc_length']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_rf_ui_d4.csv
+    [(b) Standardisation] RF: 0.833 +/- 0.114
+    LR [no EVR]   (UI) - User 0 -> test=0.580 train=0.742 (kept 3/44):
+      ['x_kurt', 'y_min', 'path_y']
+    LR [no EVR]   (UI) - User 1 -> test=0.820 train=0.951 (kept 7/44):
+      ['x_kurt', 'y_min', 'y_kurt', 'z_kurt', 'bbox_diag', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 2 -> test=0.870 train=0.988 (kept 14/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_max', 'z_kurt', 'speed_mean', 'speed_std', 'arc_length', 'bbox_diag', 'speed_seg3', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 3 -> test=0.680 train=0.961 (kept 10/44):
+      ['x_kurt', 'y_min', 'y_skew', 'y_kurt', 'z_kurt', 'speed_mean', 'arc_length', 'bbox_diag', 'speed_seg1', 'path_y']
+    LR [no EVR]   (UI) - User 4 -> test=0.870 train=0.888 (kept 6/44):
+      ['x_range', 'y_min', 'y_kurt', 'arc_length', 'bbox_diag', 'path_y']
+    LR [no EVR]   (UI) - User 5 -> test=0.740 train=0.947 (kept 11/44):
+      ['x_min', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_kurt', 'arc_length', 'bbox_diag', 'path_x', 'path_y', 'path_z']
+    LR [no EVR]   (UI) - User 6 -> test=0.990 train=0.963 (kept 16/44):
+      ['x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'arc_length', 'bbox_diag', 'speed_seg3', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 7 -> test=0.640 train=0.897 (kept 6/44):
+      ['x_range', 'y_min', 'y_kurt', 'arc_length', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 8 -> test=0.920 train=0.961 (kept 14/44):
+      ['x_min', 'x_max', 'x_range', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_min', 'arc_length', 'curv_std', 'speed_seg3', 'path_x', 'path_y']
+    LR [no EVR]   (UI) - User 9 -> test=0.920 train=0.956 (kept 12/44):
+      ['x_min', 'x_range', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_kurt', 'arc_length', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['y_min', 'path_y', 'y_kurt', 'x_kurt', 'arc_length']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ui_d4.csv
+    [(b) Standardisation] LR: 0.803 +/- 0.129
+    $1   (UI) - User 0 held out -> acc = 0.920
+    $1   (UI) - User 1 held out -> acc = 0.770
+    $1   (UI) - User 2 held out -> acc = 0.790
+    $1   (UI) - User 3 held out -> acc = 0.800
+    $1   (UI) - User 4 held out -> acc = 0.780
+    $1   (UI) - User 5 held out -> acc = 0.850
+    $1   (UI) - User 6 held out -> acc = 0.920
+    $1   (UI) - User 7 held out -> acc = 0.880
+    $1   (UI) - User 8 held out -> acc = 0.910
+    $1   (UI) - User 9 held out -> acc = 0.750
+    [(b) Standardisation] $1: 0.837 +/- 0.063
+
+  (c) Standardisation + PCA denoising 3D->2D->3D
+    Edit (UI) - User 0 held out -> acc = 0.740
+    Edit (UI) - User 1 held out -> acc = 0.570
+    Edit (UI) - User 2 held out -> acc = 0.720
+    Edit (UI) - User 3 held out -> acc = 0.610
+    Edit (UI) - User 4 held out -> acc = 0.730
+    Edit (UI) - User 5 held out -> acc = 0.770
+    Edit (UI) - User 6 held out -> acc = 0.870
+    Edit (UI) - User 7 held out -> acc = 0.720
+    Edit (UI) - User 8 held out -> acc = 0.720
+    Edit (UI) - User 9 held out -> acc = 0.740
+    [(c) Std + PCA denoise] Edit Distance: 0.719 +/- 0.078
+    DTW  (UI) - User 0 held out -> acc = 0.730
+    DTW  (UI) - User 1 held out -> acc = 0.710
+    DTW  (UI) - User 2 held out -> acc = 0.740
+    DTW  (UI) - User 3 held out -> acc = 0.750
+    DTW  (UI) - User 4 held out -> acc = 0.720
+    DTW  (UI) - User 5 held out -> acc = 0.780
+    DTW  (UI) - User 6 held out -> acc = 0.870
+    DTW  (UI) - User 7 held out -> acc = 0.710
+    DTW  (UI) - User 8 held out -> acc = 0.760
+    DTW  (UI) - User 9 held out -> acc = 0.750
+    [(c) Std + PCA denoise] DTW: 0.752 +/- 0.045
+    DT [+EVR]   (UI) - User 0 -> test=0.510 train=0.799 (kept 16/47):
+      ['x_min', 'x_range', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_max', 'z_kurt', 'speed_min', 'arc_length', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc2']
+    DT [+EVR]   (UI) - User 1 -> test=0.390 train=0.939 (kept 25/47):
+      ['x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'z_std', 'z_skew', 'z_kurt', 'speed_mean', 'speed_std', 'accel_mean', 'arc_length', 'bbox_diag', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc2', 'evr_pc3']
+    DT [+EVR]   (UI) - User 2 -> test=0.490 train=0.907 (kept 18/47):
+      ['x_min', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_kurt', 'speed_mean', 'arc_length', 'curv_total', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc2']
+    DT [+EVR]   (UI) - User 3 -> test=0.470 train=0.863 (kept 14/47):
+      ['x_std', 'x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'arc_length', 'bbox_diag', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    DT [+EVR]   (UI) - User 4 -> test=0.550 train=0.948 (kept 23/47):
+      ['x_std', 'x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_skew', 'speed_mean', 'speed_min', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1']
+    DT [+EVR]   (UI) - User 5 -> test=0.500 train=0.714 (kept 20/47):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_min', 'y_range', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_std', 'accel_std', 'arc_length', 'curv_total', 'speed_seg1', 'path_x', 'path_y', 'path_z', 'evr_pc1']
+    DT [+EVR]   (UI) - User 6 -> test=0.530 train=0.928 (kept 14/47):
+      ['x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_max', 'y_kurt', 'z_kurt', 'speed_mean', 'arc_length', 'bbox_diag', 'curv_total', 'path_y', 'evr_pc2']
+    DT [+EVR]   (UI) - User 7 -> test=0.670 train=0.942 (kept 16/47):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_max', 'y_range', 'y_kurt', 'z_kurt', 'speed_mean', 'arc_length', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'path_z', 'evr_pc2']
+    DT [+EVR]   (UI) - User 8 -> test=0.620 train=0.880 (kept 11/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'speed_mean', 'arc_length', 'path_x', 'path_y', 'path_z']
+    DT [+EVR]   (UI) - User 9 -> test=0.570 train=0.953 (kept 20/47):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_max', 'y_kurt', 'z_kurt', 'speed_mean', 'accel_mean', 'arc_length', 'bbox_diag', 'curv_mean', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc3']
+    Feature selection summary (top-5): ['x_kurt', 'arc_length', 'path_y', 'x_min', 'x_skew']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_dt_ui_d4.csv
+    [(c) Std + PCA denoise] DT: 0.530 +/- 0.075  [3 PCA EVR values added to DT feature vector]
+    RF [+EVR]   (UI) - User 0 -> test=0.670 train=0.999 (kept 16/47):
+      ['x_min', 'x_range', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_max', 'z_kurt', 'speed_min', 'arc_length', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc2']
+    RF [+EVR]   (UI) - User 1 -> test=0.580 train=0.997 (kept 25/47):
+      ['x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'z_std', 'z_skew', 'z_kurt', 'speed_mean', 'speed_std', 'accel_mean', 'arc_length', 'bbox_diag', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc2', 'evr_pc3']
+    RF [+EVR]   (UI) - User 2 -> test=0.610 train=0.992 (kept 18/47):
+      ['x_min', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_kurt', 'speed_mean', 'arc_length', 'curv_total', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc2']
+    RF [+EVR]   (UI) - User 3 -> test=0.650 train=0.994 (kept 14/47):
+      ['x_std', 'x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'arc_length', 'bbox_diag', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    RF [+EVR]   (UI) - User 4 -> test=0.610 train=0.997 (kept 23/47):
+      ['x_std', 'x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_skew', 'speed_mean', 'speed_min', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1']
+    RF [+EVR]   (UI) - User 5 -> test=0.740 train=0.998 (kept 20/47):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_min', 'y_range', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_std', 'accel_std', 'arc_length', 'curv_total', 'speed_seg1', 'path_x', 'path_y', 'path_z', 'evr_pc1']
+    RF [+EVR]   (UI) - User 6 -> test=0.760 train=0.996 (kept 14/47):
+      ['x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_max', 'y_kurt', 'z_kurt', 'speed_mean', 'arc_length', 'bbox_diag', 'curv_total', 'path_y', 'evr_pc2']
+    RF [+EVR]   (UI) - User 7 -> test=0.850 train=0.997 (kept 16/47):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_max', 'y_range', 'y_kurt', 'z_kurt', 'speed_mean', 'arc_length', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'path_z', 'evr_pc2']
+    RF [+EVR]   (UI) - User 8 -> test=0.700 train=0.989 (kept 11/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'speed_mean', 'arc_length', 'path_x', 'path_y', 'path_z']
+    RF [+EVR]   (UI) - User 9 -> test=0.810 train=0.997 (kept 20/47):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_max', 'y_kurt', 'z_kurt', 'speed_mean', 'accel_mean', 'arc_length', 'bbox_diag', 'curv_mean', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc3']
+    Feature selection summary (top-5): ['x_kurt', 'arc_length', 'path_y', 'x_min', 'x_skew']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_rf_ui_d4.csv
+    [(c) Std + PCA denoise] RF: 0.698 +/- 0.086  [3 PCA EVR values added to RF feature vector]
+    LR [+EVR]   (UI) - User 0 -> test=0.710 train=0.887 (kept 16/47):
+      ['x_min', 'x_range', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_max', 'z_kurt', 'speed_min', 'arc_length', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc2']
+    LR [+EVR]   (UI) - User 1 -> test=0.680 train=0.948 (kept 25/47):
+      ['x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'z_std', 'z_skew', 'z_kurt', 'speed_mean', 'speed_std', 'accel_mean', 'arc_length', 'bbox_diag', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc2', 'evr_pc3']
+    LR [+EVR]   (UI) - User 2 -> test=0.680 train=0.897 (kept 18/47):
+      ['x_min', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_kurt', 'speed_mean', 'arc_length', 'curv_total', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc2']
+    LR [+EVR]   (UI) - User 3 -> test=0.560 train=0.853 (kept 14/47):
+      ['x_std', 'x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'arc_length', 'bbox_diag', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    LR [+EVR]   (UI) - User 4 -> test=0.630 train=0.919 (kept 23/47):
+      ['x_std', 'x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_skew', 'speed_mean', 'speed_min', 'arc_length', 'curv_mean', 'curv_total', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1']
+    LR [+EVR]   (UI) - User 5 -> test=0.720 train=0.923 (kept 20/47):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_min', 'y_range', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_std', 'accel_std', 'arc_length', 'curv_total', 'speed_seg1', 'path_x', 'path_y', 'path_z', 'evr_pc1']
+    LR [+EVR]   (UI) - User 6 -> test=0.660 train=0.841 (kept 14/47):
+      ['x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_max', 'y_kurt', 'z_kurt', 'speed_mean', 'arc_length', 'bbox_diag', 'curv_total', 'path_y', 'evr_pc2']
+    LR [+EVR]   (UI) - User 7 -> test=0.800 train=0.893 (kept 16/47):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_max', 'y_range', 'y_kurt', 'z_kurt', 'speed_mean', 'arc_length', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y', 'path_z', 'evr_pc2']
+    LR [+EVR]   (UI) - User 8 -> test=0.740 train=0.794 (kept 11/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'speed_mean', 'arc_length', 'path_x', 'path_y', 'path_z']
+    LR [+EVR]   (UI) - User 9 -> test=0.650 train=0.917 (kept 20/47):
+      ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_max', 'y_kurt', 'z_kurt', 'speed_mean', 'accel_mean', 'arc_length', 'bbox_diag', 'curv_mean', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc3']
+    Feature selection summary (top-5): ['x_kurt', 'arc_length', 'path_y', 'x_min', 'x_skew']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ui_d4.csv
+    [(c) Std + PCA denoise] LR: 0.683 +/- 0.062  [3 PCA EVR values added to LR feature vector]
+    $1   (UI) - User 0 held out -> acc = 0.730
+    $1   (UI) - User 1 held out -> acc = 0.720
+    $1   (UI) - User 2 held out -> acc = 0.710
+    $1   (UI) - User 3 held out -> acc = 0.660
+    $1   (UI) - User 4 held out -> acc = 0.680
+    $1   (UI) - User 5 held out -> acc = 0.660
+    $1   (UI) - User 6 held out -> acc = 0.800
+    $1   (UI) - User 7 held out -> acc = 0.610
+    $1   (UI) - User 8 held out -> acc = 0.740
+    $1   (UI) - User 9 held out -> acc = 0.660
+    [(c) Std + PCA denoise] $1: 0.697 +/- 0.051
+
+  ------------------------------------------------------------
+  Best preprocessing per method - Domain 4 (UI):
+  ------------------------------------------------------------
+    Edit Distance   : (b) Standardisation  (mean acc = 0.857 +/- 0.068)
+    DTW             : (b) Standardisation  (mean acc = 0.865 +/- 0.078)
+    DT              : (b) Standardisation  (mean acc = 0.768 +/- 0.096)
+    RF              : (b) Standardisation  (mean acc = 0.833 +/- 0.114)
+    LR              : (a) No preprocessing  (mean acc = 0.836 +/- 0.056)
+    $1              : (b) Standardisation  (mean acc = 0.837 +/- 0.063)
+
+  Ablation summary - Domain 4 (UI):
+Method                              $1               DT              DTW    Edit Distance               LR               RF
+Preprocessing                                                                                                              
+(a) No preprocessing   0.820 +/- 0.085  0.702 +/- 0.102  0.486 +/- 0.117  0.442 +/- 0.142  0.836 +/- 0.056  0.814 +/- 0.074
+(b) Standardisation    0.837 +/- 0.063  0.768 +/- 0.096  0.865 +/- 0.078  0.857 +/- 0.068  0.803 +/- 0.129  0.833 +/- 0.114
+(c) Std + PCA denoise  0.697 +/- 0.051  0.530 +/- 0.075  0.752 +/- 0.045  0.719 +/- 0.078  0.683 +/- 0.062  0.698 +/- 0.086
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/ablation/ablation_domain4_ui.csv
+
+=== Ablation Study - Domain 4 - User-Dependent ===
+
+=================================================================
+  ABLATION STUDY | Domain 4 | User-dependent
+=================================================================
+
+  (a) No preprocessing
+    Edit (UD) - Fold 0 -> acc = 0.800
+    Edit (UD) - Fold 1 -> acc = 0.920
+    Edit (UD) - Fold 2 -> acc = 0.990
+    Edit (UD) - Fold 3 -> acc = 0.960
+    Edit (UD) - Fold 4 -> acc = 0.980
+    Edit (UD) - Fold 5 -> acc = 0.950
+    Edit (UD) - Fold 6 -> acc = 0.930
+    Edit (UD) - Fold 7 -> acc = 0.970
+    Edit (UD) - Fold 8 -> acc = 0.950
+    Edit (UD) - Fold 9 -> acc = 0.930
+    [(a) No preprocessing] Edit Distance: 0.938 +/- 0.051
+    DTW  (UD) - Fold 0 -> acc = 0.880
+    DTW  (UD) - Fold 1 -> acc = 0.920
+    DTW  (UD) - Fold 2 -> acc = 0.970
+    DTW  (UD) - Fold 3 -> acc = 0.960
+    DTW  (UD) - Fold 4 -> acc = 0.960
+    DTW  (UD) - Fold 5 -> acc = 0.960
+    DTW  (UD) - Fold 6 -> acc = 0.970
+    DTW  (UD) - Fold 7 -> acc = 0.970
+    DTW  (UD) - Fold 8 -> acc = 0.980
+    DTW  (UD) - Fold 9 -> acc = 0.950
+    [(a) No preprocessing] DTW: 0.952 +/- 0.029
+    DT [no EVR]   (UD) - Fold 0 -> test=0.700 train=0.921 (kept 7/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'z_range', 'z_kurt', 'path_y']
+    DT [no EVR]   (UD) - Fold 1 -> test=0.760 train=0.892 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    DT [no EVR]   (UD) - Fold 2 -> test=0.830 train=0.958 (kept 5/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']
+    DT [no EVR]   (UD) - Fold 3 -> test=0.900 train=0.974 (kept 9/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_min', 'y_skew', 'y_kurt', 'z_std', 'z_kurt', 'path_y']
+    DT [no EVR]   (UD) - Fold 4 -> test=0.830 train=0.890 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    DT [no EVR]   (UD) - Fold 5 -> test=0.830 train=0.927 (kept 9/44):
+      ['x_skew', 'x_kurt', 'y_std', 'y_range', 'y_skew', 'y_kurt', 'z_std', 'z_kurt', 'path_y']
+    DT [no EVR]   (UD) - Fold 6 -> test=0.870 train=0.937 (kept 11/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_std', 'y_range', 'y_skew', 'y_kurt', 'z_range', 'z_skew', 'z_kurt', 'path_y']
+    DT [no EVR]   (UD) - Fold 7 -> test=0.800 train=0.866 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    DT [no EVR]   (UD) - Fold 8 -> test=0.800 train=0.942 (kept 6/44):
+      ['x_kurt', 'y_range', 'y_skew', 'y_kurt', 'z_std', 'z_kurt']
+    DT [no EVR]   (UD) - Fold 9 -> test=0.810 train=0.907 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    Feature selection summary (top-5): ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_dt_ud_d4.csv
+    [(a) No preprocessing] DT: 0.813 +/- 0.053
+    RF [no EVR]   (UD) - Fold 0 -> test=0.830 train=0.999 (kept 7/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'z_range', 'z_kurt', 'path_y']
+    RF [no EVR]   (UD) - Fold 1 -> test=0.870 train=0.960 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    RF [no EVR]   (UD) - Fold 2 -> test=0.870 train=0.988 (kept 5/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']
+    RF [no EVR]   (UD) - Fold 3 -> test=0.970 train=0.997 (kept 9/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_min', 'y_skew', 'y_kurt', 'z_std', 'z_kurt', 'path_y']
+    RF [no EVR]   (UD) - Fold 4 -> test=0.870 train=0.936 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    RF [no EVR]   (UD) - Fold 5 -> test=0.910 train=0.997 (kept 9/44):
+      ['x_skew', 'x_kurt', 'y_std', 'y_range', 'y_skew', 'y_kurt', 'z_std', 'z_kurt', 'path_y']
+    RF [no EVR]   (UD) - Fold 6 -> test=0.930 train=0.997 (kept 11/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_std', 'y_range', 'y_skew', 'y_kurt', 'z_range', 'z_skew', 'z_kurt', 'path_y']
+    RF [no EVR]   (UD) - Fold 7 -> test=0.840 train=0.938 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    RF [no EVR]   (UD) - Fold 8 -> test=0.920 train=0.992 (kept 6/44):
+      ['x_kurt', 'y_range', 'y_skew', 'y_kurt', 'z_std', 'z_kurt']
+    RF [no EVR]   (UD) - Fold 9 -> test=0.870 train=0.922 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    Feature selection summary (top-5): ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_rf_ud_d4.csv
+    [(a) No preprocessing] RF: 0.888 +/- 0.041
+    LR [no EVR]   (UD) - Fold 0 -> test=0.840 train=0.908 (kept 7/44):
+      ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'z_range', 'z_kurt', 'path_y']
+    LR [no EVR]   (UD) - Fold 1 -> test=0.810 train=0.832 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    LR [no EVR]   (UD) - Fold 2 -> test=0.850 train=0.870 (kept 5/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']
+    LR [no EVR]   (UD) - Fold 3 -> test=0.940 train=0.930 (kept 9/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_min', 'y_skew', 'y_kurt', 'z_std', 'z_kurt', 'path_y']
+    LR [no EVR]   (UD) - Fold 4 -> test=0.860 train=0.822 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    LR [no EVR]   (UD) - Fold 5 -> test=0.980 train=0.947 (kept 9/44):
+      ['x_skew', 'x_kurt', 'y_std', 'y_range', 'y_skew', 'y_kurt', 'z_std', 'z_kurt', 'path_y']
+    LR [no EVR]   (UD) - Fold 6 -> test=0.960 train=0.967 (kept 11/44):
+      ['x_std', 'x_skew', 'x_kurt', 'y_std', 'y_range', 'y_skew', 'y_kurt', 'z_range', 'z_skew', 'z_kurt', 'path_y']
+    LR [no EVR]   (UD) - Fold 7 -> test=0.810 train=0.831 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    LR [no EVR]   (UD) - Fold 8 -> test=0.870 train=0.903 (kept 6/44):
+      ['x_kurt', 'y_range', 'y_skew', 'y_kurt', 'z_std', 'z_kurt']
+    LR [no EVR]   (UD) - Fold 9 -> test=0.840 train=0.818 (kept 4/44):
+      ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt']
+    Feature selection summary (top-5): ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ud_d4.csv
+    [(a) No preprocessing] LR: 0.876 +/- 0.059
+    $1   (UD) - Fold 0 -> acc = 0.930
+    $1   (UD) - Fold 1 -> acc = 0.990
+    $1   (UD) - Fold 2 -> acc = 0.970
+    $1   (UD) - Fold 3 -> acc = 0.980
+    $1   (UD) - Fold 4 -> acc = 0.960
+    $1   (UD) - Fold 5 -> acc = 0.990
+    $1   (UD) - Fold 6 -> acc = 0.970
+    $1   (UD) - Fold 7 -> acc = 1.000
+    $1   (UD) - Fold 8 -> acc = 0.970
+    $1   (UD) - Fold 9 -> acc = 0.970
+    [(a) No preprocessing] $1: 0.973 +/- 0.018
+
+  (b) Standardisation only
+    Edit (UD) - Fold 0 -> acc = 0.950
+    Edit (UD) - Fold 1 -> acc = 0.980
+    Edit (UD) - Fold 2 -> acc = 0.980
+    Edit (UD) - Fold 3 -> acc = 0.990
+    Edit (UD) - Fold 4 -> acc = 1.000
+    Edit (UD) - Fold 5 -> acc = 0.990
+    Edit (UD) - Fold 6 -> acc = 0.990
+    Edit (UD) - Fold 7 -> acc = 0.980
+    Edit (UD) - Fold 8 -> acc = 0.970
+    Edit (UD) - Fold 9 -> acc = 1.000
+    [(b) Standardisation] Edit Distance: 0.983 +/- 0.014
+    DTW  (UD) - Fold 0 -> acc = 0.930
+    DTW  (UD) - Fold 1 -> acc = 0.980
+    DTW  (UD) - Fold 2 -> acc = 1.000
+    DTW  (UD) - Fold 3 -> acc = 0.990
+    DTW  (UD) - Fold 4 -> acc = 0.990
+    DTW  (UD) - Fold 5 -> acc = 0.990
+    DTW  (UD) - Fold 6 -> acc = 1.000
+    DTW  (UD) - Fold 7 -> acc = 1.000
+    DTW  (UD) - Fold 8 -> acc = 0.990
+    DTW  (UD) - Fold 9 -> acc = 1.000
+    [(b) Standardisation] DTW: 0.987 +/- 0.020
+    DT [no EVR]   (UD) - Fold 0 -> test=0.770 train=0.949 (kept 13/44):
+      ['x_skew', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_kurt', 'speed_min', 'arc_length', 'bbox_diag', 'curv_std', 'speed_seg1', 'speed_seg2', 'path_y']
+    DT [no EVR]   (UD) - Fold 1 -> test=0.830 train=0.964 (kept 17/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'arc_length', 'bbox_diag', 'speed_seg3', 'path_x', 'path_y', 'path_z']
+    DT [no EVR]   (UD) - Fold 2 -> test=0.830 train=0.937 (kept 7/44):
+      ['x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_kurt', 'arc_length', 'path_y']
+    DT [no EVR]   (UD) - Fold 3 -> test=0.870 train=0.932 (kept 18/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_std', 'speed_max', 'accel_mean', 'accel_std', 'speed_seg2', 'speed_seg3', 'path_y']
+    DT [no EVR]   (UD) - Fold 4 -> test=0.880 train=0.944 (kept 8/44):
+      ['x_kurt', 'y_min', 'y_range', 'y_skew', 'y_kurt', 'z_kurt', 'speed_seg3', 'path_y']
+    DT [no EVR]   (UD) - Fold 5 -> test=0.860 train=0.932 (kept 7/44):
+      ['x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 6 -> test=0.900 train=0.977 (kept 19/44):
+      ['x_min', 'x_max', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_range', 'z_kurt', 'speed_mean', 'speed_std', 'arc_length', 'bbox_diag', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 7 -> test=0.890 train=0.973 (kept 17/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'arc_length', 'bbox_diag', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    DT [no EVR]   (UD) - Fold 8 -> test=0.910 train=0.929 (kept 11/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_range', 'z_kurt', 'speed_mean', 'arc_length', 'speed_seg3', 'path_y']
+    DT [no EVR]   (UD) - Fold 9 -> test=0.890 train=0.953 (kept 15/44):
+      ['x_min', 'x_max', 'x_range', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_kurt', 'accel_mean', 'accel_std', 'arc_length', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['x_kurt', 'y_min', 'y_kurt', 'path_y', 'y_max']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_dt_ud_d4.csv
+    [(b) Standardisation] DT: 0.863 +/- 0.040
+    RF [no EVR]   (UD) - Fold 0 -> test=0.900 train=0.991 (kept 13/44):
+      ['x_skew', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_kurt', 'speed_min', 'arc_length', 'bbox_diag', 'curv_std', 'speed_seg1', 'speed_seg2', 'path_y']
+    RF [no EVR]   (UD) - Fold 1 -> test=0.960 train=1.000 (kept 17/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'arc_length', 'bbox_diag', 'speed_seg3', 'path_x', 'path_y', 'path_z']
+    RF [no EVR]   (UD) - Fold 2 -> test=0.910 train=0.976 (kept 7/44):
+      ['x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_kurt', 'arc_length', 'path_y']
+    RF [no EVR]   (UD) - Fold 3 -> test=0.940 train=0.952 (kept 18/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_std', 'speed_max', 'accel_mean', 'accel_std', 'speed_seg2', 'speed_seg3', 'path_y']
+    RF [no EVR]   (UD) - Fold 4 -> test=0.910 train=0.939 (kept 8/44):
+      ['x_kurt', 'y_min', 'y_range', 'y_skew', 'y_kurt', 'z_kurt', 'speed_seg3', 'path_y']
+    RF [no EVR]   (UD) - Fold 5 -> test=0.920 train=0.988 (kept 7/44):
+      ['x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 6 -> test=0.970 train=0.994 (kept 19/44):
+      ['x_min', 'x_max', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_range', 'z_kurt', 'speed_mean', 'speed_std', 'arc_length', 'bbox_diag', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 7 -> test=0.950 train=0.993 (kept 17/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'arc_length', 'bbox_diag', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    RF [no EVR]   (UD) - Fold 8 -> test=0.950 train=0.960 (kept 11/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_range', 'z_kurt', 'speed_mean', 'arc_length', 'speed_seg3', 'path_y']
+    RF [no EVR]   (UD) - Fold 9 -> test=0.960 train=0.998 (kept 15/44):
+      ['x_min', 'x_max', 'x_range', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_kurt', 'accel_mean', 'accel_std', 'arc_length', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['x_kurt', 'y_min', 'y_kurt', 'path_y', 'y_max']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_rf_ud_d4.csv
+    [(b) Standardisation] RF: 0.937 +/- 0.024
+    LR [no EVR]   (UD) - Fold 0 -> test=0.890 train=0.972 (kept 13/44):
+      ['x_skew', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_kurt', 'speed_min', 'arc_length', 'bbox_diag', 'curv_std', 'speed_seg1', 'speed_seg2', 'path_y']
+    LR [no EVR]   (UD) - Fold 1 -> test=0.950 train=0.948 (kept 17/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'arc_length', 'bbox_diag', 'speed_seg3', 'path_x', 'path_y', 'path_z']
+    LR [no EVR]   (UD) - Fold 2 -> test=0.910 train=0.954 (kept 7/44):
+      ['x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_kurt', 'arc_length', 'path_y']
+    LR [no EVR]   (UD) - Fold 3 -> test=0.940 train=0.966 (kept 18/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_std', 'speed_max', 'accel_mean', 'accel_std', 'speed_seg2', 'speed_seg3', 'path_y']
+    LR [no EVR]   (UD) - Fold 4 -> test=0.890 train=0.891 (kept 8/44):
+      ['x_kurt', 'y_min', 'y_range', 'y_skew', 'y_kurt', 'z_kurt', 'speed_seg3', 'path_y']
+    LR [no EVR]   (UD) - Fold 5 -> test=0.920 train=0.892 (kept 7/44):
+      ['x_kurt', 'y_min', 'y_max', 'y_skew', 'y_kurt', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 6 -> test=0.930 train=0.948 (kept 19/44):
+      ['x_min', 'x_max', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_range', 'z_kurt', 'speed_mean', 'speed_std', 'arc_length', 'bbox_diag', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 7 -> test=0.960 train=0.950 (kept 17/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'arc_length', 'bbox_diag', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y']
+    LR [no EVR]   (UD) - Fold 8 -> test=0.930 train=0.956 (kept 11/44):
+      ['x_max', 'x_kurt', 'y_min', 'y_max', 'y_kurt', 'z_range', 'z_kurt', 'speed_mean', 'arc_length', 'speed_seg3', 'path_y']
+    LR [no EVR]   (UD) - Fold 9 -> test=0.930 train=0.943 (kept 15/44):
+      ['x_min', 'x_max', 'x_range', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_kurt', 'accel_mean', 'accel_std', 'arc_length', 'path_x', 'path_y']
+    Feature selection summary (top-5): ['x_kurt', 'y_min', 'y_kurt', 'path_y', 'y_max']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ud_d4.csv
+    [(b) Standardisation] LR: 0.925 +/- 0.022
+    $1   (UD) - Fold 0 -> acc = 0.900
+    $1   (UD) - Fold 1 -> acc = 0.990
+    $1   (UD) - Fold 2 -> acc = 0.960
+    $1   (UD) - Fold 3 -> acc = 0.980
+    $1   (UD) - Fold 4 -> acc = 0.990
+    $1   (UD) - Fold 5 -> acc = 0.960
+    $1   (UD) - Fold 6 -> acc = 0.940
+    $1   (UD) - Fold 7 -> acc = 0.970
+    $1   (UD) - Fold 8 -> acc = 0.920
+    $1   (UD) - Fold 9 -> acc = 0.940
+    [(b) Standardisation] $1: 0.955 +/- 0.028
+
+  (c) Standardisation + PCA denoising 3D->2D->3D
+    Edit (UD) - Fold 0 -> acc = 0.980
+    Edit (UD) - Fold 1 -> acc = 0.940
+    Edit (UD) - Fold 2 -> acc = 0.940
+    Edit (UD) - Fold 3 -> acc = 0.970
+    Edit (UD) - Fold 4 -> acc = 0.970
+    Edit (UD) - Fold 5 -> acc = 0.960
+    Edit (UD) - Fold 6 -> acc = 0.970
+    Edit (UD) - Fold 7 -> acc = 0.980
+    Edit (UD) - Fold 8 -> acc = 0.940
+    Edit (UD) - Fold 9 -> acc = 0.950
+    [(c) Std + PCA denoise] Edit Distance: 0.960 +/- 0.015
+    DTW  (UD) - Fold 0 -> acc = 0.900
+    DTW  (UD) - Fold 1 -> acc = 0.950
+    DTW  (UD) - Fold 2 -> acc = 0.940
+    DTW  (UD) - Fold 3 -> acc = 0.960
+    DTW  (UD) - Fold 4 -> acc = 0.990
+    DTW  (UD) - Fold 5 -> acc = 0.960
+    DTW  (UD) - Fold 6 -> acc = 0.960
+    DTW  (UD) - Fold 7 -> acc = 0.990
+    DTW  (UD) - Fold 8 -> acc = 0.910
+    DTW  (UD) - Fold 9 -> acc = 0.960
+    [(c) Std + PCA denoise] DTW: 0.952 +/- 0.028
+    DT [+EVR]   (UD) - Fold 0 -> test=0.630 train=0.830 (kept 17/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_min', 'z_max', 'z_kurt', 'accel_std', 'arc_length', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc3']
+    DT [+EVR]   (UD) - Fold 1 -> test=0.710 train=0.928 (kept 20/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_min', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_min', 'accel_mean', 'arc_length', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1']
+    DT [+EVR]   (UD) - Fold 2 -> test=0.750 train=0.898 (kept 18/47):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_std', 'speed_max', 'accel_mean', 'arc_length', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc2']
+    DT [+EVR]   (UD) - Fold 3 -> test=0.690 train=0.883 (kept 28/47):
+      ['x_max', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_std', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_std', 'speed_min', 'accel_mean', 'arc_length', 'curv_std', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc2', 'evr_pc3']
+    DT [+EVR]   (UD) - Fold 4 -> test=0.690 train=0.813 (kept 6/47):
+      ['x_kurt', 'y_max', 'y_range', 'arc_length', 'speed_seg2', 'path_y']
+    DT [+EVR]   (UD) - Fold 5 -> test=0.710 train=0.812 (kept 10/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_kurt', 'z_max', 'z_kurt', 'arc_length', 'path_y', 'path_z', 'evr_pc2']
+    DT [+EVR]   (UD) - Fold 6 -> test=0.710 train=0.918 (kept 14/47):
+      ['x_min', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'arc_length', 'speed_seg3', 'path_x', 'path_y']
+    DT [+EVR]   (UD) - Fold 7 -> test=0.670 train=0.820 (kept 5/47):
+      ['x_kurt', 'y_min', 'y_kurt', 'arc_length', 'path_y']
+    DT [+EVR]   (UD) - Fold 8 -> test=0.690 train=0.840 (kept 27/47):
+      ['x_std', 'x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_std', 'z_max', 'speed_mean', 'speed_min', 'accel_mean', 'accel_std', 'arc_length', 'bbox_diag', 'curv_mean', 'curv_std', 'curv_total', 'speed_seg1', 'speed_seg3', 'path_y', 'evr_pc2', 'evr_pc3']
+    DT [+EVR]   (UD) - Fold 9 -> test=0.770 train=0.944 (kept 18/47):
+      ['x_std', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'speed_mean', 'speed_std', 'arc_length', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z']
+    Feature selection summary (top-5): ['x_kurt', 'arc_length', 'path_y', 'y_min', 'y_kurt']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_dt_ud_d4.csv
+    [(c) Std + PCA denoise] DT: 0.702 +/- 0.037  [3 PCA EVR values added to DT feature vector]
+    RF [+EVR]   (UD) - Fold 0 -> test=0.830 train=0.989 (kept 17/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_min', 'z_max', 'z_kurt', 'accel_std', 'arc_length', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc3']
+    RF [+EVR]   (UD) - Fold 1 -> test=0.870 train=0.986 (kept 20/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_min', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_min', 'accel_mean', 'arc_length', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1']
+    RF [+EVR]   (UD) - Fold 2 -> test=0.850 train=0.994 (kept 18/47):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_std', 'speed_max', 'accel_mean', 'arc_length', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc2']
+    RF [+EVR]   (UD) - Fold 3 -> test=0.890 train=0.989 (kept 28/47):
+      ['x_max', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_std', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_std', 'speed_min', 'accel_mean', 'arc_length', 'curv_std', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc2', 'evr_pc3']
+    RF [+EVR]   (UD) - Fold 4 -> test=0.800 train=0.938 (kept 6/47):
+      ['x_kurt', 'y_max', 'y_range', 'arc_length', 'speed_seg2', 'path_y']
+    RF [+EVR]   (UD) - Fold 5 -> test=0.830 train=0.979 (kept 10/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_kurt', 'z_max', 'z_kurt', 'arc_length', 'path_y', 'path_z', 'evr_pc2']
+    RF [+EVR]   (UD) - Fold 6 -> test=0.910 train=0.977 (kept 14/47):
+      ['x_min', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'arc_length', 'speed_seg3', 'path_x', 'path_y']
+    RF [+EVR]   (UD) - Fold 7 -> test=0.740 train=0.974 (kept 5/47):
+      ['x_kurt', 'y_min', 'y_kurt', 'arc_length', 'path_y']
+    RF [+EVR]   (UD) - Fold 8 -> test=0.890 train=0.987 (kept 27/47):
+      ['x_std', 'x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_std', 'z_max', 'speed_mean', 'speed_min', 'accel_mean', 'accel_std', 'arc_length', 'bbox_diag', 'curv_mean', 'curv_std', 'curv_total', 'speed_seg1', 'speed_seg3', 'path_y', 'evr_pc2', 'evr_pc3']
+    RF [+EVR]   (UD) - Fold 9 -> test=0.870 train=0.993 (kept 18/47):
+      ['x_std', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'speed_mean', 'speed_std', 'arc_length', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z']
+    Feature selection summary (top-5): ['x_kurt', 'arc_length', 'path_y', 'y_min', 'y_kurt']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_rf_ud_d4.csv
+    [(c) Std + PCA denoise] RF: 0.848 +/- 0.048  [3 PCA EVR values added to RF feature vector]
+    LR [+EVR]   (UD) - Fold 0 -> test=0.800 train=0.899 (kept 17/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_min', 'z_max', 'z_kurt', 'accel_std', 'arc_length', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc3']
+    LR [+EVR]   (UD) - Fold 1 -> test=0.890 train=0.909 (kept 20/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_min', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_min', 'accel_mean', 'arc_length', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1']
+    LR [+EVR]   (UD) - Fold 2 -> test=0.870 train=0.856 (kept 18/47):
+      ['x_min', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_kurt', 'z_std', 'speed_max', 'accel_mean', 'arc_length', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc2']
+    LR [+EVR]   (UD) - Fold 3 -> test=0.910 train=0.937 (kept 28/47):
+      ['x_max', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_std', 'z_max', 'z_skew', 'z_kurt', 'speed_mean', 'speed_std', 'speed_min', 'accel_mean', 'arc_length', 'curv_std', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc2', 'evr_pc3']
+    LR [+EVR]   (UD) - Fold 4 -> test=0.720 train=0.718 (kept 6/47):
+      ['x_kurt', 'y_max', 'y_range', 'arc_length', 'speed_seg2', 'path_y']
+    LR [+EVR]   (UD) - Fold 5 -> test=0.770 train=0.806 (kept 10/47):
+      ['x_skew', 'x_kurt', 'y_min', 'y_kurt', 'z_max', 'z_kurt', 'arc_length', 'path_y', 'path_z', 'evr_pc2']
+    LR [+EVR]   (UD) - Fold 6 -> test=0.830 train=0.832 (kept 14/47):
+      ['x_min', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_max', 'arc_length', 'speed_seg3', 'path_x', 'path_y']
+    LR [+EVR]   (UD) - Fold 7 -> test=0.690 train=0.668 (kept 5/47):
+      ['x_kurt', 'y_min', 'y_kurt', 'arc_length', 'path_y']
+    LR [+EVR]   (UD) - Fold 8 -> test=0.870 train=0.902 (kept 27/47):
+      ['x_std', 'x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_std', 'z_max', 'speed_mean', 'speed_min', 'accel_mean', 'accel_std', 'arc_length', 'bbox_diag', 'curv_mean', 'curv_std', 'curv_total', 'speed_seg1', 'speed_seg3', 'path_y', 'evr_pc2', 'evr_pc3']
+    LR [+EVR]   (UD) - Fold 9 -> test=0.820 train=0.841 (kept 18/47):
+      ['x_std', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'speed_mean', 'speed_std', 'arc_length', 'speed_seg1', 'speed_seg3', 'path_x', 'path_y', 'path_z']
+    Feature selection summary (top-5): ['x_kurt', 'arc_length', 'path_y', 'y_min', 'y_kurt']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ud_d4.csv
+    [(c) Std + PCA denoise] LR: 0.817 +/- 0.069  [3 PCA EVR values added to LR feature vector]
+    $1   (UD) - Fold 0 -> acc = 0.910
+    $1   (UD) - Fold 1 -> acc = 0.950
+    $1   (UD) - Fold 2 -> acc = 0.900
+    $1   (UD) - Fold 3 -> acc = 0.890
+    $1   (UD) - Fold 4 -> acc = 0.920
+    $1   (UD) - Fold 5 -> acc = 0.940
+    $1   (UD) - Fold 6 -> acc = 0.900
+    $1   (UD) - Fold 7 -> acc = 0.930
+    $1   (UD) - Fold 8 -> acc = 0.890
+    $1   (UD) - Fold 9 -> acc = 0.920
+    [(c) Std + PCA denoise] $1: 0.915 +/- 0.020
+
+  ------------------------------------------------------------
+  Best preprocessing per method - Domain 4 (UD):
+  ------------------------------------------------------------
+    Edit Distance   : (b) Standardisation  (mean acc = 0.983 +/- 0.014)
+    DTW             : (b) Standardisation  (mean acc = 0.987 +/- 0.020)
+    DT              : (b) Standardisation  (mean acc = 0.863 +/- 0.040)
+    RF              : (b) Standardisation  (mean acc = 0.937 +/- 0.024)
+    LR              : (b) Standardisation  (mean acc = 0.925 +/- 0.022)
+    $1              : (a) No preprocessing  (mean acc = 0.973 +/- 0.018)
+
+  Ablation summary - Domain 4 (UD):
+Method                              $1               DT              DTW    Edit Distance               LR               RF
+Preprocessing                                                                                                              
+(a) No preprocessing   0.973 +/- 0.018  0.813 +/- 0.053  0.952 +/- 0.029  0.938 +/- 0.051  0.876 +/- 0.059  0.888 +/- 0.041
+(b) Standardisation    0.955 +/- 0.028  0.863 +/- 0.040  0.987 +/- 0.020  0.983 +/- 0.014  0.925 +/- 0.022  0.937 +/- 0.024
+(c) Std + PCA denoise  0.915 +/- 0.020  0.702 +/- 0.037  0.952 +/- 0.028  0.960 +/- 0.015  0.817 +/- 0.069  0.848 +/- 0.048
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/ablation/ablation_domain4_ud.csv
+  [policy] $1 forced to '(a) No preprocessing' (was '(b) Standardisation') per Wobbrock 2007 / Kratz & Rohs 2010.
+
+  UI-vs-UD best-preprocessing comparison (Domain 1):
+    Edit Distance  UI: (b) Standardisation    UD: (b) Standardisation   
+    DTW            UI: (b) Standardisation    UD: (b) Standardisation   
+    DT             UI: (b) Standardisation    UD: (b) Standardisation   
+    RF             UI: (b) Standardisation    UD: (a) No preprocessing    <-- DIVERGENT
+    LR             UI: (b) Standardisation    UD: (a) No preprocessing    <-- DIVERGENT
+    $1             UI: (a) No preprocessing   UD: (a) No preprocessing  
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/ablation/preproc_ui_vs_ud_domain1.csv
+
+  UI-vs-UD best-preprocessing comparison (Domain 4):
+    Edit Distance  UI: (b) Standardisation    UD: (b) Standardisation   
+    DTW            UI: (b) Standardisation    UD: (b) Standardisation   
+    DT             UI: (b) Standardisation    UD: (b) Standardisation   
+    RF             UI: (b) Standardisation    UD: (b) Standardisation   
+    LR             UI: (a) No preprocessing   UD: (b) Standardisation     <-- DIVERGENT
+    $1             UI: (a) No preprocessing   UD: (a) No preprocessing  
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/ablation/preproc_ui_vs_ud_domain4.csv
+
+=== RF permutation-importance analysis (post-hoc only) ===
+  RF permutation importance (Domain 1, post-hoc): 2/44 features cover 90 % of cumulative importance.
+  RF permutation importance (Domain 4, post-hoc): 1/44 features cover 90 % of cumulative importance.
+
+=== Main Evaluation - Domain 1 - User-Independent (from ablation) ===
+  Edit Distance   : (b) Standardisation    mean = 0.864 +/- 0.135
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_independent_edit.csv
+  DTW             : (b) Standardisation    mean = 0.918 +/- 0.097
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_independent_dtw.csv
+  DT              : (b) Standardisation    mean = 0.825 +/- 0.068
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_independent_dt.csv
+  RF              : (b) Standardisation    mean = 0.890 +/- 0.070
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_independent_rf.csv
+  LR              : (b) Standardisation    mean = 0.858 +/- 0.113
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_independent_lr.csv
+  $1              : (a) No preprocessing   mean = 0.993 +/- 0.010
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_independent_dollar.csv
+
+=== Main Evaluation - Domain 1 - User-Dependent (from ablation) ===
+  Edit Distance   : (b) Standardisation    mean = 0.978 +/- 0.014
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_dependent_edit.csv
+  DTW             : (b) Standardisation    mean = 0.988 +/- 0.010
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_dependent_dtw.csv
+  DT              : (b) Standardisation    mean = 0.865 +/- 0.055
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_dependent_dt.csv
+  RF              : (a) No preprocessing   mean = 0.911 +/- 0.037
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_dependent_rf.csv
+  LR              : (a) No preprocessing   mean = 0.897 +/- 0.062
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_dependent_lr.csv
+  $1              : (a) No preprocessing   mean = 0.999 +/- 0.003
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_dependent_dollar.csv
+
+=== Main Evaluation - Domain 4 - User-Independent (from ablation) ===
+  Edit Distance   : (b) Standardisation    mean = 0.857 +/- 0.068
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_independent_edit.csv
+  DTW             : (b) Standardisation    mean = 0.865 +/- 0.078
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_independent_dtw.csv
+  DT              : (b) Standardisation    mean = 0.768 +/- 0.096
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_independent_dt.csv
+  RF              : (b) Standardisation    mean = 0.833 +/- 0.114
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_independent_rf.csv
+  LR              : (a) No preprocessing   mean = 0.836 +/- 0.056
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_independent_lr.csv
+  $1              : (a) No preprocessing   mean = 0.820 +/- 0.085
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_independent_dollar.csv
+
+=== Main Evaluation - Domain 4 - User-Dependent (from ablation) ===
+  Edit Distance   : (b) Standardisation    mean = 0.983 +/- 0.014
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_dependent_edit.csv
+  DTW             : (b) Standardisation    mean = 0.987 +/- 0.020
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_dependent_dtw.csv
+  DT              : (b) Standardisation    mean = 0.863 +/- 0.040
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_dependent_dt.csv
+  RF              : (b) Standardisation    mean = 0.937 +/- 0.024
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_dependent_rf.csv
+  LR              : (b) Standardisation    mean = 0.925 +/- 0.022
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_dependent_lr.csv
+  $1              : (a) No preprocessing   mean = 0.973 +/- 0.018
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_dependent_dollar.csv
+
+=== Statistical Tests - Domain 1 ===
+
+================================================================================
+  Statistical tests | Domain 1 | User-independent
+  Pairs : 15  |  n = 100 (10 gestures x 10 users)
+  Test  : Paired Wilcoxon signed-rank on per-(gesture, user) accuracies
+  Corrections : Bonferroni (alpha = 0.0033) + Benjamini-Hochberg FDR @ 5%
+================================================================================
+
+  RAW Wilcoxon p-value matrix (symmetric):
+               Edit Distance     DTW      DT      RF      LR      $1
+Edit Distance            NaN  0.0007  0.1894  0.4433  0.5519  0.0000
+DTW                   0.0007     NaN  0.0011  0.1862  0.0466  0.0005
+DT                    0.1894  0.0011     NaN  0.0000  0.0174  0.0000
+RF                    0.4433  0.1862  0.0000     NaN  0.2318  0.0000
+LR                    0.5519  0.0466  0.0174  0.2318     NaN  0.0000
+$1                    0.0000  0.0005  0.0000  0.0000  0.0000     NaN
+
+  Method A           Method B               p_raw       p_BH   BH sig     p_Bonf   Bonf sig
+  -----------------------------------------------------------------------------------------------
+  Edit Distance      DTW                   0.0007     0.0015    YES *     0.0105      YES *
+  Edit Distance      DT                    0.1894     0.2367       no     1.0000         no
+  Edit Distance      RF                    0.4433     0.4750       no     1.0000         no
+  Edit Distance      LR                    0.5519     0.5519       no     1.0000         no
+  Edit Distance      $1                    0.0000     0.0000    YES *     0.0000      YES *
+  DTW                DT                    0.0011     0.0020    YES *     0.0158      YES *
+  DTW                RF                    0.1862     0.2367       no     1.0000         no
+  DTW                LR                    0.0466     0.0699       no     0.6995         no
+  DTW                $1                    0.0005     0.0013    YES *     0.0077      YES *
+  DT                 RF                    0.0000     0.0001    YES *     0.0007      YES *
+  DT                 LR                    0.0174     0.0290    YES *     0.2611         no
+  DT                 $1                    0.0000     0.0000    YES *     0.0000      YES *
+  RF                 LR                    0.2318     0.2675       no     1.0000         no
+  RF                 $1                    0.0000     0.0000    YES *     0.0000      YES *
+  LR                 $1                    0.0000     0.0000    YES *     0.0000      YES *
+
+  Best mean accuracy: $1 (0.993)
+  -> $1 is significantly better than ALL others (BH)
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/statistical_tests/p_values_domain1_user_independent.csv
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/figures/statistical_tests/p_values_heatmap_domain1.png
+
+=== Statistical Tests - Domain 4 ===
+
+================================================================================
+  Statistical tests | Domain 4 | User-independent
+  Pairs : 15  |  n = 100 (10 gestures x 10 users)
+  Test  : Paired Wilcoxon signed-rank on per-(gesture, user) accuracies
+  Corrections : Bonferroni (alpha = 0.0033) + Benjamini-Hochberg FDR @ 5%
+================================================================================
+
+  RAW Wilcoxon p-value matrix (symmetric):
+               Edit Distance     DTW      DT      RF      LR      $1
+Edit Distance            NaN  0.4858  0.0060  0.6007  0.4695  0.2203
+DTW                   0.4858     NaN  0.0026  0.3566  0.1068  0.0576
+DT                    0.0060  0.0026     NaN  0.0004  0.0308  0.1831
+RF                    0.6007  0.3566  0.0004     NaN  0.7864  0.6946
+LR                    0.4695  0.1068  0.0308  0.7864     NaN  0.5677
+$1                    0.2203  0.0576  0.1831  0.6946  0.5677     NaN
+
+  Method A           Method B               p_raw       p_BH   BH sig     p_Bonf   Bonf sig
+  -----------------------------------------------------------------------------------------------
+  Edit Distance      DTW                   0.4858     0.6625       no     1.0000         no
+  Edit Distance      DT                    0.0060     0.0302    YES *     0.0905         no
+  Edit Distance      RF                    0.6007     0.6931       no     1.0000         no
+  Edit Distance      LR                    0.4695     0.6625       no     1.0000         no
+  Edit Distance      $1                    0.2203     0.4130       no     1.0000         no
+  DTW                DT                    0.0026     0.0197    YES *     0.0395      YES *
+  DTW                RF                    0.3566     0.5943       no     1.0000         no
+  DTW                LR                    0.1068     0.2670       no     1.0000         no
+  DTW                $1                    0.0576     0.1728       no     0.8640         no
+  DT                 RF                    0.0004     0.0061    YES *     0.0061      YES *
+  DT                 LR                    0.0308     0.1153       no     0.4614         no
+  DT                 $1                    0.1831     0.3923       no     1.0000         no
+  RF                 LR                    0.7864     0.7864       no     1.0000         no
+  RF                 $1                    0.6946     0.7442       no     1.0000         no
+  LR                 $1                    0.5677     0.6931       no     1.0000         no
+
+  Best mean accuracy: DTW (0.865)
+  -> DTW NOT significantly better than Edit Distance (BH p=0.6625, Bonf p=1.0000)
+  -> DTW NOT significantly better than RF (BH p=0.5943, Bonf p=1.0000)
+  -> DTW NOT significantly better than LR (BH p=0.2670, Bonf p=1.0000)
+  -> DTW NOT significantly better than $1 (BH p=0.1728, Bonf p=0.8640)
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/statistical_tests/p_values_domain4_user_independent.csv
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/figures/statistical_tests/p_values_heatmap_domain4.png
+
+  Best model - Domain 1 (UI): $1 (0.993)  [(a) No preprocessing]
+
+  Best model - Domain 4 (UI): DTW (0.865)  [(b) Standardisation]
+
+=== Overfitting analysis: train-vs-test gap ===
+
+  Train-vs-test gap (only parametric classifiers; DTW/Edit/$1 are 1-NN, train acc = 1.0 by construction):
+  -----------------------------------------------------------------
+   D1-UI DT  train=0.940  test=0.825  gap=+0.115  <-- high variance
+   D1-UI RF  train=0.981  test=0.890  gap=+0.091  <-- high variance
+   D1-UI LR  train=0.933  test=0.858  gap=+0.075  <-- high variance
+   D1-UD DT  train=0.942  test=0.865  gap=+0.077  <-- high variance
+   D1-UD RF  train=0.985  test=0.911  gap=+0.074  <-- high variance
+   D1-UD LR  train=0.916  test=0.897  gap=+0.019
+   D4-UI DT  train=0.937  test=0.768  gap=+0.169  <-- high variance
+   D4-UI RF  train=0.979  test=0.833  gap=+0.146  <-- high variance
+   D4-UI LR  train=0.921  test=0.836  gap=+0.085  <-- high variance
+   D4-UD DT  train=0.949  test=0.863  gap=+0.086  <-- high variance
+   D4-UD RF  train=0.979  test=0.937  gap=+0.042
+   D4-UD LR  train=0.942  test=0.925  gap=+0.017
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/overfitting/overfitting_gap.csv
+
+=== Learning curves (UI, parametric classifiers) ===
+  Domain 1 UI - DT learning curve ...
+  Domain 1 UI - RF learning curve ...
+  Domain 1 UI - LR learning curve ...
+  Domain 4 UI - DT learning curve ...
+  Domain 4 UI - RF learning curve ...
+  Domain 4 UI - LR learning curve ...
+
+======================================================================
+FINAL SUMMARY - Mean accuracy +/- std
+UI = user-independent | UD = user-dependent
+======================================================================
+Method                       $1               DT              DTW    Edit Distance               LR               RF
+Domain Setting                                                                                                      
+1      UD       0.999 +/- 0.003  0.865 +/- 0.055  0.988 +/- 0.010  0.978 +/- 0.014  0.897 +/- 0.062  0.911 +/- 0.037
+       UI       0.993 +/- 0.010  0.825 +/- 0.068  0.918 +/- 0.097  0.864 +/- 0.135  0.858 +/- 0.113  0.890 +/- 0.070
+4      UD       0.973 +/- 0.018  0.863 +/- 0.040  0.987 +/- 0.020  0.983 +/- 0.014  0.925 +/- 0.022  0.937 +/- 0.024
+       UI       0.820 +/- 0.085  0.768 +/- 0.096  0.865 +/- 0.078  0.857 +/- 0.068  0.836 +/- 0.056  0.833 +/- 0.114
+
+  Preprocessing selected per method (UI / UD):
+
+  Domain 1:
+    Edit Distance   : UI = (b) Standardisation     UD = (b) Standardisation
+    DTW             : UI = (b) Standardisation     UD = (b) Standardisation
+    DT              : UI = (b) Standardisation     UD = (b) Standardisation
+    RF              : UI = (b) Standardisation     UD = (a) No preprocessing
+    LR              : UI = (b) Standardisation     UD = (a) No preprocessing
+    $1              : UI = (a) No preprocessing    UD = (a) No preprocessing
+
+  Domain 4:
+    Edit Distance   : UI = (b) Standardisation     UD = (b) Standardisation
+    DTW             : UI = (b) Standardisation     UD = (b) Standardisation
+    DT              : UI = (b) Standardisation     UD = (b) Standardisation
+    RF              : UI = (b) Standardisation     UD = (b) Standardisation
+    LR              : UI = (a) No preprocessing    UD = (b) Standardisation
+    $1              : UI = (a) No preprocessing    UD = (a) No preprocessing
+
+  Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/summary/summary_results.csv
+
+Done.
