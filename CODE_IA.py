@@ -21,10 +21,6 @@ Phase 4 : Advanced methods
             - Random Forest (Breiman 2001) with GridSearchCV (5-fold inner)
               + per-fold permutation-importance feature selection
               (Strobl et al. 2007; Guyon & Elisseeff 2003).
-            - SVM with RBF kernel (Cortes & Vapnik 1995) with GridSearchCV
-              (5-fold inner). Reference classifier in feature-based
-              gesture recognition (Mitra & Acharya 2007 survey, Wu & Huang
-              1999, Bhattacharya et al. 2014).
             - Logistic Regression (Cox 1958; Hosmer et al. 2013), multinomial
               with L2 penalty, GridSearchCV over C (5-fold inner). Linear
               baseline to bound the difficulty of the task.
@@ -34,7 +30,7 @@ Phase 4 : Advanced methods
 Phase 5 : Cross-validation
             - User-independent : leave-one-user-out (10 folds)
             - User-dependent   : leave-one-sample-out (10 folds)
-          Ablation study: 7 methods x 3 preprocessing conditions, run in
+          Ablation study: 6 methods x 3 preprocessing conditions, run in
           BOTH UI AND UD (Iteration 2 fix: best preproc may differ).
 Phase 6 : Hyperparameter validation curves (empirical iterative selection)
             - K_CLUSTERS optimum from sensitivity analysis is USED in the
@@ -46,12 +42,12 @@ Phase 7 : Statistical tests
               (10 gestures x 10 users), one accuracy per (gesture, user) pair
               for each method.
             - Bonferroni correction + Benjamini-Hochberg FDR correction.
-            - Pairwise p-value matrix (7x7 = 21 pairs) saved as CSV + heatmap.
+            - Pairwise p-value matrix (6x6 = 15 pairs) saved as CSV + heatmap.
 Phase 8 : Overfitting diagnostic
-            - Per-fold train-acc vs test-acc gap for DT/RF/SVM/LR
+            - Per-fold train-acc vs test-acc gap for DT/RF/LR
               (parametric classifiers). DTW/Edit/$1 are 1-NN, so train
               accuracy is 1.0 by construction and not reported.
-            - sklearn.model_selection.learning_curve for DT/RF/SVM/LR
+            - sklearn.model_selection.learning_curve for DT/RF/LR
               on each domain/setting: train score and validation score
               as a function of training set size. Wide gap = high variance
               (overfitting). Reference: Hastie et al. (2009) §7.10.
@@ -76,17 +72,20 @@ Major scientific decisions
      - Step 3: scaling INSIDE a normalised cube of side l (uniform
                 rescaling), avoiding axis-by-axis scaling and the
                 division-by-zero issue for quasi-planar gestures.
-     - Score:  S = 1 - d / (0.5 * sqrt(3) * l), where d is the mean
-                point-to-point Euclidean distance after alignment.
-                The factor sqrt(3) replaces sqrt(2) of the 2D paper:
-                this is the diagonal of the unit cube versus the
-                diagonal of the unit square.
+     - Score:  S = 1 - d / (0.5 * sqrt(3) * l^2), where d is the MSE
+                (mean squared point-to-point distance) after GSS
+                alignment.  Using MSE is required by Kratz's scoring
+                formula; the denominator is 0.5*sqrt(3)*l^2.
      - Templates are preprocessed only ONCE and cached, as specified
        by Wobbrock et al. (2007).
      - Recognize returns a sorted N-best list, allowing kNN with k>1.
-     - Golden Section Search refinement (Kratz & Rohs, 2010, sec.
-       "Search for Minimum Distance at Best Angle") is NOT implemented
-       to limit computational cost.
+     - Golden Section Search (GSS) over the 3 rotation axes (Kratz &
+       Rohs 2010, "Search for Minimum Distance at Best Angle") is
+       implemented via Numba-JIT functions (_dollar_gss_mse):
+       phi = 0.5*(sqrt(5)-1), cutoff = 2 deg, 11 iterations per axis.
+     - Scoring heuristic (Kratz & Rohs 2010): top-3 check with epsilon
+       thresholds. allow_rejection=False (default) forces 1-Best for
+       CV comparability with RF/LR/DT.
 
 2. Wilcoxon n=100. For each method, a 100-vector of accuracies is built,
    one per (gesture, user) pair. Pairs are then compared method-vs-method
@@ -107,7 +106,7 @@ Major scientific decisions
    threshold (Guyon & Elisseeff 2003). NO leakage: importance is fit on
    each outer-fold's training set only.
 
-6. Hyperparameter tuning asymmetry. RF, Decision Tree, SVM, and Logistic
+6. Hyperparameter tuning asymmetry. RF, Decision Tree, and Logistic
    Regression hyperparameters are selected per-fold via GridSearchCV
    (nested CV, inner CV = 5 folds; Varma & Simon 2006; Cawley & Talbot
    2010). DTW and Edit Distance hyperparameters (k-means K) are selected
@@ -143,21 +142,11 @@ Major scientific decisions
    tree) to RF (bag of trees) empirically demonstrates the value of
    bagging on this dataset (Breiman 2001, Hastie et al. 2009, ch. 15).
 
-10. SVM with RBF kernel included as a non-tree-based reference
-    classifier with strong gesture-recognition pedigree:
-      - Mitra & Acharya (2007), Pattern Recognition survey, §5.4.
-      - Wu & Huang (1999), "Vision-based gesture recognition: A
-        review", §3.1.
-      - Bhattacharya et al. (2014), "Recognition of hand gestures from
-        cyber-glove data using machine learning".
-      - Liu et al. (2012), gesture-based interaction systems.
-
-11. Logistic Regression (multinomial, L2 penalty, lbfgs solver). Linear
+10. Logistic Regression (multinomial, L2 penalty, lbfgs solver). Linear
     classifier baseline. References: Cox (1958); Hosmer, Lemeshow &
     Sturdivant (2013); Hastie, Tibshirani & Friedman (2009) §4.4.
     Acts as a lower-bound reference: a linear model on the same feature
-    vector. The gap LR -> RBF-SVM quantifies non-linear separability of
-    the features.
+    vector.
 
 12. $1 Recognizer evaluated on RAW data ONLY (preprocessing condition
     (a)). Per Wobbrock et al. (2007) and Kratz & Rohs (2010), the $1
@@ -189,20 +178,16 @@ Major scientific decisions
     Selection is fit on each outer-fold's training set only -> no
     leakage (Ambroise & McLachlan 2002, PNAS).
 
-15. Feature standardisation for SVM and LR via StandardScaler inside a
+15. Feature standardisation for LR via StandardScaler inside a
     sklearn Pipeline, fitted on each inner-CV training split only.
-    (a) SVM with RBF kernel: the kernel distance is dominated by
-        high-scale features if inputs are not normalised; scaling is
-        the canonical pre-processing step (Hsu, Chang & Lin 2010,
-        "A Practical Guide to SVC").
-    (b) LR (lbfgs solver): gradient magnitudes are scale-dependent;
-        scaling ensures balanced gradient steps and reliable
-        convergence.  max_iter increased from 2000 to 5000 to
-        guarantee convergence across all C values in the grid
-        (sklearn ConvergenceWarning fix).
+    LR (lbfgs solver): gradient magnitudes are scale-dependent;
+    scaling ensures balanced gradient steps and reliable
+    convergence.  max_iter increased from 2000 to 5000 to
+    guarantee convergence across all C values in the grid
+    (sklearn ConvergenceWarning fix).
 
-15. Overfitting diagnostic. For each parametric classifier
-    (DT, RF, SVM, LR) we record train and test accuracy per fold; the
+16. Overfitting diagnostic. For each parametric classifier
+    (DT, RF, LR) we record train and test accuracy per fold; the
     average gap train-test is reported. sklearn `learning_curve` is
     run on each (domain, setting) producing train/validation score
     curves as a function of training-set size (Hastie et al. 2009 §7.10;
@@ -278,7 +263,6 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.inspection import permutation_importance
 from sklearn.model_selection import GridSearchCV, learning_curve
@@ -343,15 +327,6 @@ DT_GRID = {
 }
 DT_GRID_INNER_CV = _INNER_CV_FOLDS
 
-# SVM (RBF) GridSearchCV grid (Cortes & Vapnik 1995; Mitra & Acharya 2007).
-# Keys use Pipeline prefix "svm__" (Hsu, Chang & Lin 2010 recommend
-# normalising inputs before SVM; we do so via StandardScaler in the Pipeline).
-SVM_GRID = {
-    "svm__C"     : [0.1, 1.0, 10.0, 100.0],
-    "svm__gamma" : ["scale", 0.01, 0.1, 1.0],
-}
-SVM_GRID_INNER_CV = _INNER_CV_FOLDS
-
 # Logistic Regression GridSearchCV grid (Cox 1958; Hosmer et al. 2013).
 # Multinomial L2-penalised LR via the lbfgs solver.  max_iter = 5000:
 # lbfgs convergence requires both scaled inputs and sufficient iterations;
@@ -382,7 +357,8 @@ VC_KNN_K      = [1, 3, 5, 7, 9]
 # $1 Recognizer hyperparameters (Kratz & Rohs, 2010)
 DOLLAR_N         = 64           # number of resampled points
 DOLLAR_L         = 1.0          # side of the normalised cube
-DOLLAR_SCORE_DENOM = 0.5 * np.sqrt(3.0) * DOLLAR_L   # diagonal/2 of the cube
+DOLLAR_SCORE_DENOM = 0.5 * np.sqrt(3.0) * DOLLAR_L ** 2   # MSE normaliser (Kratz & Rohs 2010)
+DOLLAR_EPSILON     = 0.60   # confidence threshold for scoring heuristic (Kratz & Rohs 2010)
 
 
 # ---------------------------------------------------------------------------
@@ -404,12 +380,13 @@ DIR_TBL_FOLDS            = os.path.join(OUTPUTS_DIR, "tables",  "fold_results")
 DIR_TBL_STATS            = os.path.join(OUTPUTS_DIR, "tables",  "statistical_tests")
 DIR_TBL_SUMMARY          = os.path.join(OUTPUTS_DIR, "tables",  "summary")
 DIR_TBL_OVERFITTING      = os.path.join(OUTPUTS_DIR, "tables",  "overfitting")
+DIR_TBL_FEAT_SEL         = os.path.join(OUTPUTS_DIR, "tables",  "feature_selection")
 DIR_DOC                  = os.path.join(OUTPUTS_DIR, "Documentation")
 
 for _d in [DIR_FIG_EXPLORE, DIR_FIG_PCA, DIR_FIG_VC, DIR_FIG_FI,
            DIR_FIG_CM, DIR_FIG_STATS, DIR_FIG_LEARNING_CURVES,
            DIR_TBL_ABLATION, DIR_TBL_FOLDS, DIR_TBL_STATS, DIR_TBL_SUMMARY,
-           DIR_TBL_OVERFITTING, DIR_DOC]:
+           DIR_TBL_OVERFITTING, DIR_TBL_FEAT_SEL, DIR_DOC]:
     os.makedirs(_d, exist_ok=True)
 
 
@@ -752,12 +729,14 @@ def edit_distance(seq1: np.ndarray, seq2: np.ndarray) -> int:
 # --------
 #   1. Resample to N=64 equidistant 3D points (linear interpolation along
 #      cumulative arc length).
-#   2. Translate centroid to the origin.
-#   3. Rotate so that the first resampled point lies along the centroid
+#   2. Rotate so that the first resampled point lies along the centroid
 #      direction.  The rotation axis is the unit vector pâ x c (cross
 #      product); the angle is acos((pâ . c) / (||pâ|| ||c||)).  Rotation
 #      applied with Rodrigues' formula.  Degenerate case (pâ collinear
 #      with c) -> identity rotation.
+#      NOTE: rotation must be applied BEFORE translation so that both p0
+#      and c are non-zero (centroid not yet at origin).
+#   3. Translate centroid to the origin (after rotation).
 #   4. Uniformly rescale so that the longest bounding-box edge equals
 #      DOLLAR_L (=1.0). This is the "normalised cube of side l" of
 #      Kratz & Rohs (2010).  No axis-by-axis scaling: this avoids the
@@ -765,18 +744,15 @@ def edit_distance(seq1: np.ndarray, seq2: np.ndarray) -> int:
 #
 # Score
 # -----
-#   S = 1 - d / (0.5 * sqrt(3) * l)
-# where d is the mean Euclidean point-to-point distance between the
+#   S = 1 - d / (0.5 * sqrt(3) * l^2)
+# where d is the MSE (mean squared point-to-point distance) between the
 # preprocessed candidate and the preprocessed template (Kratz & Rohs,
-# 2010, eq. 3D score).  The factor sqrt(3) replaces sqrt(2) of the 2D
-# original (cube diagonal vs square diagonal).
+# 2010).  The GSS (Golden Section Search) further refines alignment on
+# the 3 axes before computing d.
 #
 # Templates are preprocessed only once and cached, as required by
 # Wobbrock et al. (2007, "For gestures serving as templates, Steps 1-3
 # should be carried out once on the raw input points.").
-#
-# Note: the Golden Section Search refinement of Kratz & Rohs (2010) is
-# NOT implemented (computational cost vs marginal accuracy gain).
 # ==============================================================================
 
 def _dollar_path_length(points: np.ndarray) -> float:
@@ -886,62 +862,204 @@ def _dollar_scale_cube(points: np.ndarray,
     return points * (l / max_ext)
 
 
+# -- Golden Section Search (GSS) helpers — Numba JIT --------------------------
+# Kratz & Rohs (2010), "Search for Minimum Distance at Best Angle":
+#   phi = 0.5*(sqrt(5)-1), angular range [-180°,180°], cutoff = 2°, 11 iters.
+# Three functions:
+#   _rotate_1axis_nb : rotate (N,3) array around one principal axis
+#   _mse_nb          : mean squared Euclidean distance between two (N,3) arrays
+#   _dollar_gss_mse  : sequential 3-axis GSS returning the minimum MSE
+# All are @njit(cache=True) for maximum speed (called 10^4+ times in CV).
+
+@njit(cache=True)
+def _rotate_1axis_nb(pts: np.ndarray, axis_idx: int,
+                     theta: float) -> np.ndarray:
+    """Rotate (N,3) array around principal axis axis_idx by theta radians."""
+    n   = pts.shape[0]
+    out = np.empty((n, 3), dtype=np.float64)
+    c   = np.cos(theta)
+    s   = np.sin(theta)
+    for i in range(n):
+        x = pts[i, 0]
+        y = pts[i, 1]
+        z = pts[i, 2]
+        if axis_idx == 0:           # x-axis
+            out[i, 0] = x
+            out[i, 1] = y * c - z * s
+            out[i, 2] = y * s + z * c
+        elif axis_idx == 1:         # y-axis
+            out[i, 0] =  x * c + z * s
+            out[i, 1] =  y
+            out[i, 2] = -x * s + z * c
+        else:                       # z-axis
+            out[i, 0] = x * c - y * s
+            out[i, 1] = x * s + y * c
+            out[i, 2] = z
+    return out
+
+
+@njit(cache=True)
+def _mse_nb(a: np.ndarray, b: np.ndarray) -> float:
+    """Mean squared point-to-point distance between two (N,3) arrays."""
+    n     = a.shape[0]
+    total = 0.0
+    for i in range(n):
+        dx = a[i, 0] - b[i, 0]
+        dy = a[i, 1] - b[i, 1]
+        dz = a[i, 2] - b[i, 2]
+        total += dx * dx + dy * dy + dz * dz
+    return total / n
+
+
+@njit(cache=True)
+def _dollar_gss_mse(cand: np.ndarray, tmpl: np.ndarray) -> float:
+    """
+    Golden Section Search over 3 rotation axes (Kratz & Rohs 2010).
+    Applies GSS sequentially on x, y, z axes; rotates candidate to best
+    angle on each axis before moving to the next.
+    Parameters: phi = 0.5*(sqrt(5)-1), cutoff = 2 deg = pi/90, 11 iters.
+    Returns the minimum MSE after optimal 3-axis alignment.
+    """
+    phi    = 0.5 * (-1.0 + np.sqrt(5.0))
+    cutoff = np.pi / 90.0       # 2 degrees
+    n      = cand.shape[0]
+
+    for axis in range(3):
+        a_ang = -np.pi
+        b_ang =  np.pi
+        for _ in range(11):
+            if (b_ang - a_ang) <= cutoff:
+                break
+            c1 = b_ang - phi * (b_ang - a_ang)
+            c2 = a_ang + phi * (b_ang - a_ang)
+
+            # Compute d1 (MSE at c1) and d2 (MSE at c2) inline — no alloc
+            cos1 = np.cos(c1);  sin1 = np.sin(c1)
+            cos2 = np.cos(c2);  sin2 = np.sin(c2)
+            d1 = 0.0;  d2 = 0.0
+            for i in range(n):
+                x = cand[i, 0];  y = cand[i, 1];  z = cand[i, 2]
+                if axis == 0:
+                    rx1 = x;  ry1 = y*cos1 - z*sin1;  rz1 = y*sin1 + z*cos1
+                    rx2 = x;  ry2 = y*cos2 - z*sin2;  rz2 = y*sin2 + z*cos2
+                elif axis == 1:
+                    rx1 =  x*cos1 + z*sin1;  ry1 = y;  rz1 = -x*sin1 + z*cos1
+                    rx2 =  x*cos2 + z*sin2;  ry2 = y;  rz2 = -x*sin2 + z*cos2
+                else:
+                    rx1 = x*cos1 - y*sin1;  ry1 = x*sin1 + y*cos1;  rz1 = z
+                    rx2 = x*cos2 - y*sin2;  ry2 = x*sin2 + y*cos2;  rz2 = z
+                ex1 = rx1 - tmpl[i, 0];  ey1 = ry1 - tmpl[i, 1]
+                ez1 = rz1 - tmpl[i, 2]
+                ex2 = rx2 - tmpl[i, 0];  ey2 = ry2 - tmpl[i, 1]
+                ez2 = rz2 - tmpl[i, 2]
+                d1 += ex1*ex1 + ey1*ey1 + ez1*ez1
+                d2 += ex2*ex2 + ey2*ey2 + ez2*ez2
+
+            if d1 < d2:
+                b_ang = c2
+            else:
+                a_ang = c1
+
+        best_angle = (a_ang + b_ang) * 0.5
+        cand = _rotate_1axis_nb(cand, axis, best_angle)
+
+    return _mse_nb(cand, tmpl)
+
+
 def dollar_preprocess(points: np.ndarray,
                        n: int   = DOLLAR_N,
                        l: float = DOLLAR_L) -> np.ndarray:
     """
     Apply Steps 1-4 of the $3 (Kratz & Rohs, 2010) preprocessing.
     Used once on training templates (cached) and once on each candidate.
-    Step order: resample -> translate to origin -> rotate to indicative
-    angle -> scale to unit cube.
-    The second translate-to-origin after scaling is omitted: uniform
-    scaling preserves the centroid at the origin.
+    Correct step order (Kratz & Rohs 2010):
+      1. Resample to N equidistant points.
+      2. Rotate to indicative angle (p0 and centroid c are both non-zero
+         here — centroid has NOT yet been moved to origin).
+      3. Translate centroid to origin (after rotation so c stays valid).
+      4. Scale uniformly to unit cube of side l.
+    NOTE: translation must come AFTER rotation. If translation is applied
+    first, the centroid becomes (0,0,0) and the indicative-angle formula
+    n_c < 1e-12 guard triggers, making the rotation a no-op.
     """
     pts = dollar_resample(points, n)
-    pts = _dollar_translate_to_origin(pts)
-    pts = _dollar_align_to_indicative_axis(pts)
-    pts = _dollar_scale_cube(pts, l)
-    # Second _dollar_translate_to_origin removed: uniform scaling
-    # preserves centroid at origin (no displacement).
+    pts = _dollar_align_to_indicative_axis(pts)   # step 2: c valid here
+    pts = _dollar_translate_to_origin(pts)        # step 3: centroid → 0
+    pts = _dollar_scale_cube(pts, l)              # step 4
     return pts
 
 
 def _dollar_path_distance(a: np.ndarray, b: np.ndarray) -> float:
-    """Mean Euclidean distance between two same-length 3D paths."""
-    return float(np.mean(np.linalg.norm(a - b, axis=1)))
+    """MSE (mean squared point-to-point distance) between two same-length 3D paths.
+    Required by Kratz & Rohs (2010) score formula: S = 1 - d/(0.5*sqrt(3)*l^2).
+    """
+    return float(np.mean(np.sum((a - b) ** 2, axis=1)))
 
 
 def dollar_score(distance: float, l: float = DOLLAR_L) -> float:
     """
-    Confidence score in [0, 1] (Kratz & Rohs, 2010, 3D adaptation):
-        S = 1 - d / (0.5 * sqrt(3) * l)
+    Confidence score in [0, 1] (Kratz & Rohs, 2010, 3D MSE adaptation):
+        S = 1 - d / (0.5 * sqrt(3) * l^2)
+    where d is the MSE between the two preprocessed paths.
     Clipped to [0, 1] in case of numerical edge effects.
     """
-    s = 1.0 - distance / (0.5 * np.sqrt(3.0) * l)
+    s = 1.0 - distance / (0.5 * np.sqrt(3.0) * l ** 2)
     return float(max(0.0, min(1.0, s)))
 
 
 def dollar_recognize(candidate_pre: np.ndarray,
                       templates_pre: list,
                       template_labels: list,
-                      l: float = DOLLAR_L
+                      l: float = DOLLAR_L,
+                      allow_rejection: bool = False,
+                      epsilon: float = DOLLAR_EPSILON
                       ) -> tuple[int, float, list]:
     """
     Step 5 of Kratz & Rohs (2010) recognition: rank all (preprocessed)
-    templates against the (preprocessed) candidate by mean point-to-point
-    distance, and return:
+    templates against the (preprocessed) candidate by GSS-refined MSE,
+    and return:
         (best_label, best_score, ranked_list)
     where ranked_list is a sorted N-best list:
         [(label, distance, score), ...]   sorted by distance ascending.
+
+    allow_rejection=False (default):
+        Always return the best-scoring candidate (1-Best, no rejection).
+        Use this in cross-validation so the $3 is directly comparable to
+        RF/LR/DT on accuracy (force prediction on every sample).
+
+    allow_rejection=True:
+        Apply the Kratz & Rohs (2010) scoring heuristic:
+          - If best_score > 1.1*epsilon → return best candidate.
+          - Elif within top-3, two entries of the same class both have
+            score > 0.95*epsilon → return that class.
+          - Else → return (-1, 0.0, ranked) meaning "not recognized".
     """
     distances = [
-        _dollar_path_distance(candidate_pre, t) for t in templates_pre
+        _dollar_gss_mse(candidate_pre, t) for t in templates_pre
     ]
     order   = np.argsort(distances)
     ranked  = [(template_labels[k], float(distances[k]),
                 dollar_score(distances[k], l)) for k in order]
-    best_label, best_d, best_s = ranked[0]
-    return int(best_label), float(best_s), ranked
+    best_label, _best_d, best_s = ranked[0]
+
+    if not allow_rejection:
+        return int(best_label), float(best_s), ranked
+
+    # --- Kratz & Rohs (2010) scoring heuristic ---
+    if best_s > 1.1 * epsilon:
+        return int(best_label), float(best_s), ranked
+
+    top3 = ranked[:3]
+    counts: dict = {}
+    for lbl, _d, sc in top3:
+        if sc > 0.95 * epsilon:
+            counts[lbl] = counts.get(lbl, 0) + 1
+    for lbl, cnt in counts.items():
+        if cnt >= 2:
+            sc_for_lbl = max(sc for l2, _d, sc in top3 if l2 == lbl)
+            return int(lbl), float(sc_for_lbl), ranked
+
+    return -1, 0.0, ranked   # gesture not recognized
 
 
 # ==============================================================================
@@ -1321,7 +1439,8 @@ def crossval_ui_rf(data_pca: list, labels: list, users: list,
                     folds: list,
                     evr_list: list | None = None,
                     tag: str = "",
-                    use_grid_search: bool = True
+                    use_grid_search: bool = True,
+                    domain: int = 0
                     ) -> tuple[float, float, list, np.ndarray, list]:
     """
     RF user-independent CV with per-fold permutation-importance feature
@@ -1336,10 +1455,13 @@ def crossval_ui_rf(data_pca: list, labels: list, users: list,
     names = feature_names(with_evr=(evr_list is not None))
     fold_test_accs, fold_train_accs = [], []
     correct: dict = {}
+    feat_counter: dict = {n: 0 for n in names}
     for fold_num, (tr, te) in enumerate(folds):
         X_tr_full = X[tr]
         y_tr      = y[tr]
         kept = _select_features_per_fold(X_tr_full, y_tr, names)
+        for n in kept:
+            feat_counter[n] += 1
         cols = [names.index(n) for n in kept]
         X_tr = X_tr_full[:, cols]
         X_te = X[te][:, cols]
@@ -1360,8 +1482,11 @@ def crossval_ui_rf(data_pca: list, labels: list, users: list,
             correct[idx] = int(p == labels[idx])
         u = sorted(set(users))[fold_num]
         print(f"    RF{tag}   (UI) - User {u} -> test={test_acc:.3f} "
-              f"train={train_acc:.3f} (kept {len(kept)}/{len(names)})")
+              f"train={train_acc:.3f} (kept {len(kept)}/{len(names)}):\n"
+              f"      {kept}")
     gu = _aggregate_gu_accuracy(correct, labels, users)
+    if domain:
+        _save_feat_sel_summary(feat_counter, len(folds), "rf", "ui", domain)
     return (float(np.mean(fold_test_accs)), float(np.std(fold_test_accs)),
             fold_test_accs, gu, fold_train_accs)
 
@@ -1370,17 +1495,21 @@ def crossval_ud_rf(data_pca: list, labels: list, users: list,
                     folds: list,
                     evr_list: list | None = None,
                     tag: str = "",
-                    use_grid_search: bool = True
+                    use_grid_search: bool = True,
+                    domain: int = 0
                     ) -> tuple[float, float, list, np.ndarray, list]:
     X     = build_feature_dataset(data_pca, evr_list)
     y     = np.array(labels)
     names = feature_names(with_evr=(evr_list is not None))
     fold_test_accs, fold_train_accs = [], []
     correct: dict = {}
+    feat_counter: dict = {n: 0 for n in names}
     for fold_num, (tr, te, _te_users) in enumerate(folds):
         X_tr_full = X[tr]
         y_tr      = y[tr]
         kept = _select_features_per_fold(X_tr_full, y_tr, names)
+        for n in kept:
+            feat_counter[n] += 1
         cols = [names.index(n) for n in kept]
         X_tr = X_tr_full[:, cols]
         X_te = X[te][:, cols]
@@ -1400,8 +1529,11 @@ def crossval_ud_rf(data_pca: list, labels: list, users: list,
         for idx, p in zip(te, preds_te.tolist()):
             correct[idx] = int(p == labels[idx])
         print(f"    RF{tag}   (UD) - Fold {fold_num} -> test={test_acc:.3f} "
-              f"train={train_acc:.3f} (kept {len(kept)}/{len(names)})")
+              f"train={train_acc:.3f} (kept {len(kept)}/{len(names)}):\n"
+              f"      {kept}")
     gu = _aggregate_gu_accuracy(correct, labels, users)
+    if domain:
+        _save_feat_sel_summary(feat_counter, len(folds), "rf", "ud", domain)
     return (float(np.mean(fold_test_accs)), float(np.std(fold_test_accs)),
             fold_test_accs, gu, fold_train_accs)
 
@@ -1571,6 +1703,24 @@ def _select_features_per_fold(X_tr: np.ndarray, y_tr: np.ndarray,
     return [names[i] for i in final_idx]
 
 
+def _save_feat_sel_summary(feat_counter: dict, n_folds: int,
+                            method_tag: str, setting_tag: str,
+                            domain: int) -> None:
+    """Save a CSV of feature selection frequency across CV folds.
+    Columns: feature, n_folds_selected, pct.
+    Sorted descending by n_folds_selected.
+    """
+    rows = sorted(feat_counter.items(), key=lambda x: -x[1])
+    feat_df = pd.DataFrame(rows, columns=["feature", "n_folds_selected"])
+    feat_df["pct"] = feat_df["n_folds_selected"] / n_folds
+    path = os.path.join(
+        DIR_TBL_FEAT_SEL,
+        f"feat_sel_{method_tag}_{setting_tag}_d{domain}.csv")
+    feat_df.to_csv(path, index=False)
+    top5 = feat_df.head(5)["feature"].tolist()
+    print(f"    Feature selection summary (top-5): {top5}  -> {path}")
+
+
 # -- Decision Tree with GridSearchCV ------------------------------------------
 # Used as a pedagogical baseline to empirically demonstrate the value of the
 # bagging procedure in Random Forest. References:
@@ -1598,7 +1748,8 @@ def _dt_fit_with_grid(X_tr: np.ndarray, y_tr: np.ndarray,
 def crossval_ui_dt(data_pca: list, labels: list, users: list,
                     folds: list,
                     evr_list: list | None = None,
-                    tag: str = ""
+                    tag: str = "",
+                    domain: int = 0
                     ) -> tuple[float, float, list, np.ndarray, list]:
     """
     Decision Tree user-independent CV with per-fold permutation-importance
@@ -1609,10 +1760,13 @@ def crossval_ui_dt(data_pca: list, labels: list, users: list,
     names = feature_names(with_evr=(evr_list is not None))
     fold_test_accs, fold_train_accs = [], []
     correct: dict = {}
+    feat_counter: dict = {n: 0 for n in names}
     for fold_num, (tr, te) in enumerate(folds):
         X_tr_full = X[tr]
         y_tr      = y[tr]
         kept = _select_features_per_fold(X_tr_full, y_tr, names)
+        for n in kept:
+            feat_counter[n] += 1
         cols = [names.index(n) for n in kept]
         X_tr = X_tr_full[:, cols]
         X_te = X[te][:, cols]
@@ -1627,8 +1781,11 @@ def crossval_ui_dt(data_pca: list, labels: list, users: list,
             correct[idx] = int(p == labels[idx])
         u = sorted(set(users))[fold_num]
         print(f"    DT{tag}   (UI) - User {u} -> test={test_acc:.3f} "
-              f"train={train_acc:.3f} (kept {len(kept)}/{len(names)})")
+              f"train={train_acc:.3f} (kept {len(kept)}/{len(names)}):\n"
+              f"      {kept}")
     gu = _aggregate_gu_accuracy(correct, labels, users)
+    if domain:
+        _save_feat_sel_summary(feat_counter, len(folds), "dt", "ui", domain)
     return (float(np.mean(fold_test_accs)), float(np.std(fold_test_accs)),
             fold_test_accs, gu, fold_train_accs)
 
@@ -1636,17 +1793,21 @@ def crossval_ui_dt(data_pca: list, labels: list, users: list,
 def crossval_ud_dt(data_pca: list, labels: list, users: list,
                     folds: list,
                     evr_list: list | None = None,
-                    tag: str = ""
+                    tag: str = "",
+                    domain: int = 0
                     ) -> tuple[float, float, list, np.ndarray, list]:
     X     = build_feature_dataset(data_pca, evr_list)
     y     = np.array(labels)
     names = feature_names(with_evr=(evr_list is not None))
     fold_test_accs, fold_train_accs = [], []
     correct: dict = {}
+    feat_counter: dict = {n: 0 for n in names}
     for fold_num, (tr, te, _te_users) in enumerate(folds):
         X_tr_full = X[tr]
         y_tr      = y[tr]
         kept = _select_features_per_fold(X_tr_full, y_tr, names)
+        for n in kept:
+            feat_counter[n] += 1
         cols = [names.index(n) for n in kept]
         X_tr = X_tr_full[:, cols]
         X_te = X[te][:, cols]
@@ -1660,120 +1821,11 @@ def crossval_ud_dt(data_pca: list, labels: list, users: list,
         for idx, p in zip(te, preds_te.tolist()):
             correct[idx] = int(p == labels[idx])
         print(f"    DT{tag}   (UD) - Fold {fold_num} -> test={test_acc:.3f} "
-              f"train={train_acc:.3f} (kept {len(kept)}/{len(names)})")
+              f"train={train_acc:.3f} (kept {len(kept)}/{len(names)}):\n"
+              f"      {kept}")
     gu = _aggregate_gu_accuracy(correct, labels, users)
-    return (float(np.mean(fold_test_accs)), float(np.std(fold_test_accs)),
-            fold_test_accs, gu, fold_train_accs)
-
-
-# -- SVM (RBF kernel) with GridSearchCV ---------------------------------------
-# Reference classifier in feature-based gesture recognition.
-# References:
-#   Cortes, C., & Vapnik, V. (1995). Support-vector networks. Mach. Learn.,
-#     20, 273-297.
-#   Schoelkopf, B., & Smola, A. (2002). Learning with kernels. MIT Press.
-# Gesture recognition uses:
-#   Mitra, S., & Acharya, T. (2007). Gesture recognition: A survey.
-#     IEEE Trans. SMC-C, 37 (3), 311-324.  -- §5.4 reviews SVM-based gesture
-#     recognition.
-#   Wu, Y., & Huang, T. S. (1999). Vision-based gesture recognition: A
-#     review. Gesture Workshop, LNAI 1739, 103-115.
-#   Bhattacharya, S., Czejdo, B., & Perez, N. (2014). Gesture classification
-#     with machine learning using Kinect sensor data. ICETET'14.
-# Note on scaling: SVM is sensitive to feature scales. Our features are
-# derived from per-gesture standardised signals; in conditions (b) and (c)
-# the input statistics are already comparable. Condition (a) is included
-# to empirically expose SVM's sensitivity to unscaled inputs.
-
-def _svm_fit_with_grid(X_tr: np.ndarray, y_tr: np.ndarray,
-                        grid: dict = SVM_GRID,
-                        inner_cv: int = SVM_GRID_INNER_CV,
-                        random_state: int = 42
-                        ) -> Pipeline:
-    """
-    Fit a Pipeline(StandardScaler -> SVC(kernel='rbf')) with C and gamma
-    tuned via GridSearchCV (inner CV on training fold only; no leakage).
-    StandardScaler is applied inside the Pipeline so that scaling is
-    fitted on each inner-CV training split, never on held-out data
-    (Hsu, Chang & Lin 2010, "A Practical Guide to SVC").
-    """
-    pipe = Pipeline([
-        ("scaler", StandardScaler()),
-        ("svm",    SVC(kernel="rbf", random_state=random_state)),
-    ])
-    gs = GridSearchCV(pipe, param_grid=grid, cv=inner_cv,
-                      scoring="accuracy", n_jobs=-1, refit=True)
-    gs.fit(X_tr, y_tr)
-    return gs.best_estimator_
-
-
-def crossval_ui_svm(data_pca: list, labels: list, users: list,
-                     folds: list,
-                     evr_list: list | None = None,
-                     tag: str = ""
-                     ) -> tuple[float, float, list, np.ndarray, list]:
-    """
-    SVM (RBF) user-independent CV with per-fold permutation-importance
-    feature selection. Returns (mean, std, test_accs, gu, train_accs).
-    """
-    X     = build_feature_dataset(data_pca, evr_list)
-    y     = np.array(labels)
-    names = feature_names(with_evr=(evr_list is not None))
-    fold_test_accs, fold_train_accs = [], []
-    correct: dict = {}
-    for fold_num, (tr, te) in enumerate(folds):
-        X_tr_full = X[tr]
-        y_tr      = y[tr]
-        kept = _select_features_per_fold(X_tr_full, y_tr, names)
-        cols = [names.index(n) for n in kept]
-        X_tr = X_tr_full[:, cols]
-        X_te = X[te][:, cols]
-        clf = _svm_fit_with_grid(X_tr, y_tr)
-        preds_te = clf.predict(X_te)
-        preds_tr = clf.predict(X_tr)
-        test_acc  = float(np.mean(preds_te == y[te]))
-        train_acc = float(np.mean(preds_tr == y_tr))
-        fold_test_accs.append(test_acc)
-        fold_train_accs.append(train_acc)
-        for idx, p in zip(te, preds_te.tolist()):
-            correct[idx] = int(p == labels[idx])
-        u = sorted(set(users))[fold_num]
-        print(f"    SVM{tag}  (UI) - User {u} -> test={test_acc:.3f} "
-              f"train={train_acc:.3f} (kept {len(kept)}/{len(names)})")
-    gu = _aggregate_gu_accuracy(correct, labels, users)
-    return (float(np.mean(fold_test_accs)), float(np.std(fold_test_accs)),
-            fold_test_accs, gu, fold_train_accs)
-
-
-def crossval_ud_svm(data_pca: list, labels: list, users: list,
-                     folds: list,
-                     evr_list: list | None = None,
-                     tag: str = ""
-                     ) -> tuple[float, float, list, np.ndarray, list]:
-    X     = build_feature_dataset(data_pca, evr_list)
-    y     = np.array(labels)
-    names = feature_names(with_evr=(evr_list is not None))
-    fold_test_accs, fold_train_accs = [], []
-    correct: dict = {}
-    for fold_num, (tr, te, _te_users) in enumerate(folds):
-        X_tr_full = X[tr]
-        y_tr      = y[tr]
-        kept = _select_features_per_fold(X_tr_full, y_tr, names)
-        cols = [names.index(n) for n in kept]
-        X_tr = X_tr_full[:, cols]
-        X_te = X[te][:, cols]
-        clf = _svm_fit_with_grid(X_tr, y_tr)
-        preds_te = clf.predict(X_te)
-        preds_tr = clf.predict(X_tr)
-        test_acc  = float(np.mean(preds_te == y[te]))
-        train_acc = float(np.mean(preds_tr == y_tr))
-        fold_test_accs.append(test_acc)
-        fold_train_accs.append(train_acc)
-        for idx, p in zip(te, preds_te.tolist()):
-            correct[idx] = int(p == labels[idx])
-        print(f"    SVM{tag}  (UD) - Fold {fold_num} -> test={test_acc:.3f} "
-              f"train={train_acc:.3f} (kept {len(kept)}/{len(names)})")
-    gu = _aggregate_gu_accuracy(correct, labels, users)
+    if domain:
+        _save_feat_sel_summary(feat_counter, len(folds), "dt", "ud", domain)
     return (float(np.mean(fold_test_accs)), float(np.std(fold_test_accs)),
             fold_test_accs, gu, fold_train_accs)
 
@@ -1787,7 +1839,7 @@ def crossval_ud_svm(data_pca: list, labels: list, users: list,
 #   Hastie, Tibshirani & Friedman (2009), §4.4 (multinomial LR).
 # Gesture-recognition uses: Wu & Huang (1999, §3) list LR among linear
 # classifiers for gesture features; it serves as a lower-bound reference
-# vs. RBF-SVM (kernel) and RF (ensemble).
+# vs. RF (ensemble) and DT (single tree).
 
 def _lr_fit_with_grid(X_tr: np.ndarray, y_tr: np.ndarray,
                        grid: dict = LR_GRID,
@@ -1817,7 +1869,8 @@ def _lr_fit_with_grid(X_tr: np.ndarray, y_tr: np.ndarray,
 def crossval_ui_lr(data_pca: list, labels: list, users: list,
                     folds: list,
                     evr_list: list | None = None,
-                    tag: str = ""
+                    tag: str = "",
+                    domain: int = 0
                     ) -> tuple[float, float, list, np.ndarray, list]:
     """
     Logistic Regression user-independent CV with per-fold feature
@@ -1828,10 +1881,13 @@ def crossval_ui_lr(data_pca: list, labels: list, users: list,
     names = feature_names(with_evr=(evr_list is not None))
     fold_test_accs, fold_train_accs = [], []
     correct: dict = {}
+    feat_counter: dict = {n: 0 for n in names}
     for fold_num, (tr, te) in enumerate(folds):
         X_tr_full = X[tr]
         y_tr      = y[tr]
         kept = _select_features_per_fold(X_tr_full, y_tr, names)
+        for n in kept:
+            feat_counter[n] += 1
         cols = [names.index(n) for n in kept]
         X_tr = X_tr_full[:, cols]
         X_te = X[te][:, cols]
@@ -1846,8 +1902,11 @@ def crossval_ui_lr(data_pca: list, labels: list, users: list,
             correct[idx] = int(p == labels[idx])
         u = sorted(set(users))[fold_num]
         print(f"    LR{tag}   (UI) - User {u} -> test={test_acc:.3f} "
-              f"train={train_acc:.3f} (kept {len(kept)}/{len(names)})")
+              f"train={train_acc:.3f} (kept {len(kept)}/{len(names)}):\n"
+              f"      {kept}")
     gu = _aggregate_gu_accuracy(correct, labels, users)
+    if domain:
+        _save_feat_sel_summary(feat_counter, len(folds), "lr", "ui", domain)
     return (float(np.mean(fold_test_accs)), float(np.std(fold_test_accs)),
             fold_test_accs, gu, fold_train_accs)
 
@@ -1855,17 +1914,21 @@ def crossval_ui_lr(data_pca: list, labels: list, users: list,
 def crossval_ud_lr(data_pca: list, labels: list, users: list,
                     folds: list,
                     evr_list: list | None = None,
-                    tag: str = ""
+                    tag: str = "",
+                    domain: int = 0
                     ) -> tuple[float, float, list, np.ndarray, list]:
     X     = build_feature_dataset(data_pca, evr_list)
     y     = np.array(labels)
     names = feature_names(with_evr=(evr_list is not None))
     fold_test_accs, fold_train_accs = [], []
     correct: dict = {}
+    feat_counter: dict = {n: 0 for n in names}
     for fold_num, (tr, te, _te_users) in enumerate(folds):
         X_tr_full = X[tr]
         y_tr      = y[tr]
         kept = _select_features_per_fold(X_tr_full, y_tr, names)
+        for n in kept:
+            feat_counter[n] += 1
         cols = [names.index(n) for n in kept]
         X_tr = X_tr_full[:, cols]
         X_te = X[te][:, cols]
@@ -1879,8 +1942,11 @@ def crossval_ud_lr(data_pca: list, labels: list, users: list,
         for idx, p in zip(te, preds_te.tolist()):
             correct[idx] = int(p == labels[idx])
         print(f"    LR{tag}   (UD) - Fold {fold_num} -> test={test_acc:.3f} "
-              f"train={train_acc:.3f} (kept {len(kept)}/{len(names)})")
+              f"train={train_acc:.3f} (kept {len(kept)}/{len(names)}):\n"
+              f"      {kept}")
     gu = _aggregate_gu_accuracy(correct, labels, users)
+    if domain:
+        _save_feat_sel_summary(feat_counter, len(folds), "lr", "ud", domain)
     return (float(np.mean(fold_test_accs)), float(np.std(fold_test_accs)),
             fold_test_accs, gu, fold_train_accs)
 
@@ -1890,10 +1956,17 @@ def crossval_ud_lr(data_pca: list, labels: list, users: list,
 def _dollar_predict_one(cand_pre: np.ndarray,
                          tmpl_pre: list,
                          tmpl_lbl: list,
-                         k: int = KNN_K) -> int:
-    """1-NN (or kNN) prediction over precomputed distances."""
-    dists = np.array([_dollar_path_distance(cand_pre, t) for t in tmpl_pre])
-    return knn_predict_from_distances(dists, tmpl_lbl, k=k)
+                         k: int = KNN_K,
+                         allow_rejection: bool = False,
+                         epsilon: float = DOLLAR_EPSILON) -> int:
+    """1-NN prediction via dollar_recognize (includes GSS + optional heuristic).
+    Returns the predicted label, or -1 if allow_rejection=True and no gesture
+    passes the heuristic thresholds.
+    """
+    label, _score, _ranked = dollar_recognize(
+        cand_pre, tmpl_pre, tmpl_lbl,
+        allow_rejection=allow_rejection, epsilon=epsilon)
+    return label
 
 
 def crossval_ui_dollar(data: list, labels: list, users: list,
@@ -2069,7 +2142,7 @@ def run_ablation_study(data_raw: list, data_std: list,
                         knn_k: int = KNN_K
                         ) -> tuple[pd.DataFrame, dict]:
     """
-    Compare seven methods (Edit, DTW, DT, RF, SVM, LR, $1) under three
+    Compare six methods (Edit, DTW, DT, RF, LR, $1) under three
     preprocessing conditions on either the user-independent (UI) or the
     user-dependent (UD) cross-validation.
 
@@ -2102,21 +2175,21 @@ def run_ablation_study(data_raw: list, data_std: list,
 
     if setting == "UI":
         folds = _ui_fold_indices(users)
-        ed_fn, dtw_fn, dt_fn, rf_fn, svm_fn, lr_fn, dollar_fn = (
+        ed_fn, dtw_fn, dt_fn, rf_fn, lr_fn, dollar_fn = (
             crossval_ui_edit, crossval_ui_dtw, crossval_ui_dt,
-            crossval_ui_rf, crossval_ui_svm, crossval_ui_lr,
+            crossval_ui_rf, crossval_ui_lr,
             crossval_ui_dollar,
         )
     else:
         folds = _ud_fold_indices(labels, users)
-        ed_fn, dtw_fn, dt_fn, rf_fn, svm_fn, lr_fn, dollar_fn = (
+        ed_fn, dtw_fn, dt_fn, rf_fn, lr_fn, dollar_fn = (
             crossval_ud_edit, crossval_ud_dtw, crossval_ud_dt,
-            crossval_ud_rf, crossval_ud_svm, crossval_ud_lr,
+            crossval_ud_rf, crossval_ud_lr,
             crossval_ud_dollar,
         )
 
     rows = []
-    methods   = ["Edit Distance", "DTW", "DT", "RF", "SVM", "LR", "$1"]
+    methods   = ["Edit Distance", "DTW", "DT", "RF", "LR", "$1"]
     cond_data = {
         "(a) No preprocessing" : (data_raw,      None),
         "(b) Standardisation"  : (data_std,       None),
@@ -2150,16 +2223,13 @@ def run_ablation_study(data_raw: list, data_std: list,
                                    knn_k=knn_k))
     _record("(a) No preprocessing", "DTW", m, s, f, gu, train_accs=tr_accs)
     m, s, f, gu, tr_accs = _unpack(dt_fn(data_raw, labels, users, folds,
-                                  evr_list=None, tag=" [no EVR]"))
+                                  evr_list=None, tag=" [no EVR]", domain=domain))
     _record("(a) No preprocessing", "DT", m, s, f, gu, train_accs=tr_accs)
     m, s, f, gu, tr_accs = _unpack(rf_fn(data_raw, labels, users, folds,
-                                  evr_list=None, tag=" [no EVR]"))
+                                  evr_list=None, tag=" [no EVR]", domain=domain))
     _record("(a) No preprocessing", "RF", m, s, f, gu, train_accs=tr_accs)
-    m, s, f, gu, tr_accs = _unpack(svm_fn(data_raw, labels, users, folds,
-                                   evr_list=None, tag=" [no EVR]"))
-    _record("(a) No preprocessing", "SVM", m, s, f, gu, train_accs=tr_accs)
     m, s, f, gu, tr_accs = _unpack(lr_fn(data_raw, labels, users, folds,
-                                  evr_list=None, tag=" [no EVR]"))
+                                  evr_list=None, tag=" [no EVR]", domain=domain))
     _record("(a) No preprocessing", "LR", m, s, f, gu, train_accs=tr_accs)
     m, s, f, gu, tr_accs = _unpack(dollar_fn(data_raw, labels, users, folds))
     _record("(a) No preprocessing", "$1", m, s, f, gu, train_accs=tr_accs)
@@ -2173,16 +2243,13 @@ def run_ablation_study(data_raw: list, data_std: list,
                                    knn_k=knn_k))
     _record("(b) Standardisation", "DTW", m, s, f, gu, train_accs=tr_accs)
     m, s, f, gu, tr_accs = _unpack(dt_fn(data_std, labels, users, folds,
-                                  evr_list=None, tag=" [no EVR]"))
+                                  evr_list=None, tag=" [no EVR]", domain=domain))
     _record("(b) Standardisation", "DT", m, s, f, gu, train_accs=tr_accs)
     m, s, f, gu, tr_accs = _unpack(rf_fn(data_std, labels, users, folds,
-                                  evr_list=None, tag=" [no EVR]"))
+                                  evr_list=None, tag=" [no EVR]", domain=domain))
     _record("(b) Standardisation", "RF", m, s, f, gu, train_accs=tr_accs)
-    m, s, f, gu, tr_accs = _unpack(svm_fn(data_std, labels, users, folds,
-                                   evr_list=None, tag=" [no EVR]"))
-    _record("(b) Standardisation", "SVM", m, s, f, gu, train_accs=tr_accs)
     m, s, f, gu, tr_accs = _unpack(lr_fn(data_std, labels, users, folds,
-                                  evr_list=None, tag=" [no EVR]"))
+                                  evr_list=None, tag=" [no EVR]", domain=domain))
     _record("(b) Standardisation", "LR", m, s, f, gu, train_accs=tr_accs)
     m, s, f, gu, tr_accs = _unpack(dollar_fn(data_std, labels, users, folds))
     _record("(b) Standardisation", "$1", m, s, f, gu, train_accs=tr_accs)
@@ -2196,19 +2263,15 @@ def run_ablation_study(data_raw: list, data_std: list,
                                    knn_k=knn_k))
     _record("(c) Std + PCA denoise", "DTW", m, s, f, gu, train_accs=tr_accs)
     m, s, f, gu, tr_accs = _unpack(dt_fn(data_denoised, labels, users, folds,
-                                  evr_list=evr_list, tag=" [+EVR]"))
+                                  evr_list=evr_list, tag=" [+EVR]", domain=domain))
     _record("(c) Std + PCA denoise", "DT", m, s, f, gu, train_accs=tr_accs,
             note="3 PCA EVR values added to DT feature vector")
     m, s, f, gu, tr_accs = _unpack(rf_fn(data_denoised, labels, users, folds,
-                                  evr_list=evr_list, tag=" [+EVR]"))
+                                  evr_list=evr_list, tag=" [+EVR]", domain=domain))
     _record("(c) Std + PCA denoise", "RF", m, s, f, gu, train_accs=tr_accs,
             note="3 PCA EVR values added to RF feature vector")
-    m, s, f, gu, tr_accs = _unpack(svm_fn(data_denoised, labels, users, folds,
-                                   evr_list=evr_list, tag=" [+EVR]"))
-    _record("(c) Std + PCA denoise", "SVM", m, s, f, gu, train_accs=tr_accs,
-            note="3 PCA EVR values added to SVM feature vector")
     m, s, f, gu, tr_accs = _unpack(lr_fn(data_denoised, labels, users, folds,
-                                  evr_list=evr_list, tag=" [+EVR]"))
+                                  evr_list=evr_list, tag=" [+EVR]", domain=domain))
     _record("(c) Std + PCA denoise", "LR", m, s, f, gu, train_accs=tr_accs,
             note="3 PCA EVR values added to LR feature vector")
     m, s, f, gu, tr_accs = _unpack(dollar_fn(data_denoised, labels, users, folds))
@@ -2226,7 +2289,7 @@ def run_ablation_study(data_raw: list, data_std: list,
          best_gu, best_train_accs) = results[method][best_cond]
         best_data, best_evr = cond_data[best_cond]
 
-        if method in ("RF", "DT", "SVM", "LR") and best_cond != "(c) Std + PCA denoise":
+        if method in ("RF", "DT", "LR") and best_cond != "(c) Std + PCA denoise":
             best_evr = None
 
         best_preprocessing[method] = {
@@ -2496,20 +2559,6 @@ def compute_cm_dt(data_denoised: list, labels: list, users: list,
     _plot_cm(y_true, y_pred, sorted(set(labels)), title)
 
 
-def compute_cm_svm(data_denoised: list, labels: list, users: list,
-                    folds: list,
-                    evr_list: list | None = None,
-                    title: str = "Confusion matrix - SVM") -> None:
-    X      = build_feature_dataset(data_denoised, evr_list)
-    y      = np.array(labels)
-    y_true, y_pred = [], []
-    for tr, te in folds:
-        clf = _svm_fit_with_grid(X[tr], y[tr])
-        y_true.extend(y[te].tolist())
-        y_pred.extend(clf.predict(X[te]).tolist())
-    _plot_cm(y_true, y_pred, sorted(set(labels)), title)
-
-
 def compute_cm_lr(data_denoised: list, labels: list, users: list,
                    folds: list,
                    evr_list: list | None = None,
@@ -2561,9 +2610,6 @@ def draw_best_model_cm(best_name: str,
     elif best_name == "RF":
         compute_cm_rf(data_best, labels, users, folds_ui, evr_best,
                       title=f"RF {tag}")
-    elif best_name == "SVM":
-        compute_cm_svm(data_best, labels, users, folds_ui, evr_best,
-                        title=f"SVM {tag}")
     elif best_name == "LR":
         compute_cm_lr(data_best, labels, users, folds_ui, evr_best,
                        title=f"LR {tag}")
@@ -2646,10 +2692,6 @@ def _lc_builder_rf():
                                    max_features=RF_MAX_FEATURES,
                                    random_state=42, n_jobs=-1)
 
-def _lc_builder_svm():
-    return Pipeline([("scaler", StandardScaler()),
-                     ("svm",    SVC(kernel="rbf", random_state=42))])
-
 def _lc_builder_lr():
     return Pipeline([("scaler", StandardScaler()),
                      ("lr",     LogisticRegression(solver="lbfgs",
@@ -2710,6 +2752,8 @@ if __name__ == "__main__":
     dtw_distance(_d, _d)
     _s = np.zeros(10, dtype=np.int64)
     edit_distance(_s, _s)
+    _dp = np.random.randn(DOLLAR_N, 3).astype(np.float64)
+    _dollar_gss_mse(_dp, _dp)   # compile _rotate_1axis_nb + _mse_nb + _dollar_gss_mse
     print("done.")
 
     # -- 1. Load data ------------------------------------------------------
@@ -2873,7 +2917,7 @@ if __name__ == "__main__":
     def _save_preproc_comparison(bp_ui: dict, bp_ud: dict,
                                    domain: int) -> None:
         rows = []
-        for m in ["Edit Distance", "DTW", "DT", "RF", "SVM", "LR", "$1"]:
+        for m in ["Edit Distance", "DTW", "DT", "RF", "LR", "$1"]:
             rows.append({
                 "Domain"      : domain,
                 "Method"      : m,
@@ -2923,9 +2967,9 @@ if __name__ == "__main__":
         save_path=os.path.join(DIR_FIG_FI, "d4_rf_feature_importance.png"))
 
     # -- 9-10. Read out UI + UD results from the ablation dicts ------------
-    METHODS_ORDER  = ["Edit Distance", "DTW", "DT", "RF", "SVM", "LR", "$1"]
+    METHODS_ORDER  = ["Edit Distance", "DTW", "DT", "RF", "LR", "$1"]
     METHOD_KEY     = {"Edit Distance": "edit", "DTW": "dtw", "DT": "dt",
-                       "RF": "rf", "SVM": "svm", "LR": "lr", "$1": "dollar"}
+                       "RF": "rf", "LR": "lr", "$1": "dollar"}
 
     def _print_and_save_phase(domain: int, setting_tag: str,
                                 best_prep: dict) -> dict:
@@ -2994,7 +3038,7 @@ if __name__ == "__main__":
     for domain, mains in [(1, [("UI", main_d1_ui), ("UD", main_d1_ud)]),
                             (4, [("UI", main_d4_ui), ("UD", main_d4_ud)])]:
         for setting_tag, main_dict in mains:
-            for m in ["DT", "RF", "SVM", "LR"]:
+            for m in ["DT", "RF", "LR"]:
                 tr_accs = main_dict[m].get("train_accs")
                 if not tr_accs:
                     continue
@@ -3017,9 +3061,9 @@ if __name__ == "__main__":
     # ablation (consistent with how the model would be deployed).
     print("\n=== Learning curves (UI, parametric classifiers) ===")
     LC_BUILDERS = {"DT": _lc_builder_dt, "RF": _lc_builder_rf,
-                   "SVM": _lc_builder_svm, "LR": _lc_builder_lr}
+                   "LR": _lc_builder_lr}
     for domain, main_dict in [(1, main_d1_ui), (4, main_d4_ui)]:
-        for m in ["DT", "RF", "SVM", "LR"]:
+        for m in ["DT", "RF", "LR"]:
             entry = main_dict[m]
             data_lc, evr_lc = _data_for(
                 entry,
