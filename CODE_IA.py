@@ -281,6 +281,30 @@ from numba import njit
 from scipy.stats import wilcoxon
 from statsmodels.stats.multitest import multipletests
 
+# ==============================================================================
+# KEEPING THE LOGS IN A DEDICATED FILE FOR CONVENIENCE
+# ==============================================================================
+import sys
+
+class Logger(object):
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.log = open(filename, "a", encoding="utf-8")
+
+    def write(self, message):
+        self.terminal.write(message)  # Writes in the terminal
+        self.log.write(message)       # Writes in the txt file
+
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
+
+# Define your precise path here
+chemin_log = "./Outputs/Documentation/output_execution.txt"
+
+# Activate dual display (Console + File)
+sys.stdout = Logger(chemin_log)
+sys.stderr = sys.stdout  # Capture also error messages
 
 # ==============================================================================
 # CONFIGURATION
