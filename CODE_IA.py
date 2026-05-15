@@ -41,7 +41,7 @@ Phase 7 : Statistical tests
             - Paired Wilcoxon signed-rank test on n=100 paired observations
               (10 gestures x 10 users), one accuracy per (gesture, user) pair
               for each method.
-            - Bonferroni correction + Benjamini-Hochberg FDR correction.
+            - Benjamini-Hochberg FDR correction (BH).
             - Pairwise p-value matrix (6x6 = 15 pairs) saved as CSV + heatmap.
 Phase 8 : Overfitting diagnostic
             - Per-fold train-acc vs test-acc gap for DT/RF/LR
@@ -92,9 +92,12 @@ Major scientific decisions
    via scipy.stats.wilcoxon (signed-rank). The all-zero-diff degenerate
    case is caught and returns p=1.0 with a warning.
 
-3. Bonferroni AND Benjamini-Hochberg FDR corrections are reported.
-   The earlier permutation test and Bayesian sign test are removed
-   (redundant with Wilcoxon + correction).
+3. Benjamini-Hochberg FDR correction only (no Bonferroni).
+   Bonferroni is removed because the pairwise Wilcoxon tests share methods
+   across pairs and are therefore not independent — BH is the correct
+   procedure under positive dependence (Benjamini & Hochberg 1995, §4).
+   The earlier permutation test and Bayesian sign test are also removed
+   (redundant with Wilcoxon + BH).
 
 4. LSTM removed. The dataset is too small (~1000 samples) to justify a
    recurrent network. Earlier results were retained from prior versions
@@ -119,9 +122,14 @@ Major scientific decisions
    between methods sharing an identical tuning protocol. This limitation
    is acknowledged in the report.
 
-7. K-clustering selected via empirical validation curve (Edit Distance
-   accuracy vs K on user-independent CV). The best K is then used in
-   all downstream Edit-Distance evaluations.
+7. K-clustering selected via two empirical validation curves per domain
+   (Edit Distance accuracy vs K on user-independent CV):
+     - On standardised data (data_std) -> best K used for conditions (b)
+       and (c) of the ablation study.
+     - On raw data (data_raw) -> best K used for condition (a) only.
+   Rationale: k-means distance scales differ between raw and standardised
+   spaces (Linde et al. 1980, VQ theory), so the optimal codebook size
+   may not transfer across preprocessing conditions.
 
 8. KNN_K = 1 ENFORCED. A validation curve scanning k in {1,3,5,7,9} is
    produced for transparency (saved to Outputs/figures/validation_curves)
@@ -268,7 +276,7 @@ from sklearn.inspection import permutation_importance
 from sklearn.model_selection import GridSearchCV, learning_curve
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from joblib import Parallel, delayed
+from sklearn.utils.parallel import Parallel, delayed
 from numba import njit
 from scipy.stats import wilcoxon
 from statsmodels.stats.multitest import multipletests
@@ -1258,6 +1266,8 @@ def _ud_fold_indices(labels: list,
               for r in range(n_folds) if r != fold]
         te_users = [u
                     for g in gesture_classes for u in unique_users]
+        assert all(users[te[i]] == te_users[i] for i in range(len(te))), \
+            "te / te_users alignment broken in _ud_fold_indices"
         folds.append((tr, te, te_users))
     return folds
 
@@ -1853,6 +1863,13 @@ def _lr_fit_with_grid(X_tr: np.ndarray, y_tr: np.ndarray,
     zero-mean unit-variance inputs, which is required for reliable
     convergence (sklearn docs; Hastie et al. 2009, §18.4).
     max_iter=5000 guarantees convergence across all C values in the grid.
+
+    Note on preprocessing conditions: because LR always applies internal
+    standardisation, conditions (a) (raw data) and (b) (externally
+    standardised data) are functionally equivalent for this classifier.
+    This explains why LR may empirically select condition (a) as best on
+    some domain/setting combinations, unlike DT and RF which have no
+    internal standardisation step.
     """
     pipe = Pipeline([
         ("scaler", StandardScaler()),
@@ -2139,6 +2156,7 @@ def run_ablation_study(data_raw: list, data_std: list,
                         domain: int,
                         setting: str = "UI",
                         k_clusters: int = K_CLUSTERS,
+                        k_clusters_raw: int = K_CLUSTERS,
                         knn_k: int = KNN_K
                         ) -> tuple[pd.DataFrame, dict]:
     """
@@ -2159,8 +2177,12 @@ def run_ablation_study(data_raw: list, data_std: list,
         folds (UI) or the leave-one-sample-out folds (UD) are used, and
         which `crossval_{ui,ud}_*` functions are called.
     k_clusters : int
-        k-means K used by the Edit-Distance pipeline (per-domain optimum
-        from validation curves).
+        k-means K for Edit Distance in conditions (b) and (c), optimised
+        via validation curve on standardised data.
+    k_clusters_raw : int
+        k-means K for Edit Distance in condition (a) only, optimised via
+        validation curve on raw data. The two spaces have different distance
+        scales, so the optimal K may differ (Linde et al. 1980, VQ theory).
     knn_k : int
         kNN K used by the DTW pipeline. Forced to 1 elsewhere in the
         pipeline; the parameter is kept for API stability.
@@ -2217,7 +2239,7 @@ def run_ablation_study(data_raw: list, data_std: list,
     # ---- Condition (a) -----------------------------------------------------
     print("\n  (a) No preprocessing")
     m, s, f, gu, tr_accs = _unpack(ed_fn(data_raw, labels, users, folds,
-                                  k_clusters=k_clusters))
+                                  k_clusters=k_clusters_raw))
     _record("(a) No preprocessing", "Edit Distance", m, s, f, gu, train_accs=tr_accs)
     m, s, f, gu, tr_accs = _unpack(dtw_fn(data_raw, labels, users, folds,
                                    knn_k=knn_k))
@@ -2326,7 +2348,7 @@ def run_ablation_study(data_raw: list, data_std: list,
 # ==============================================================================
 # 10.  STATISTICAL TESTS
 #      Paired Wilcoxon signed-rank on n=100 (gesture, user) accuracy pairs.
-#      Bonferroni + Benjamini-Hochberg FDR corrections.
+#      Benjamini-Hochberg FDR correction (BH) only — see decision #3.
 # ==============================================================================
 
 def _safe_wilcoxon(a: np.ndarray, b: np.ndarray) -> float:
@@ -2358,7 +2380,9 @@ def generate_pvalue_table(methods_gu: dict,
     """
     Pairwise Wilcoxon signed-rank test on the n=100 vectors of
     per-(gesture, user) accuracies (10 gestures x 10 users).
-    Bonferroni and Benjamini-Hochberg corrections are reported.
+    Benjamini-Hochberg FDR correction (BH) is applied. Bonferroni is not
+    used: BH is more appropriate here because the pairwise tests share
+    methods and are therefore not independent (Benjamini & Hochberg 1995).
     Saves a square symmetric CSV of raw p-values and a heatmap PNG.
 
     Parameters
@@ -2369,10 +2393,9 @@ def generate_pvalue_table(methods_gu: dict,
     names = list(methods_gu.keys())
     n     = len(names)
 
-    pairs   = [(i, j) for i in range(n) for j in range(i + 1, n)]
-    n_comp  = max(len(pairs), 1)
-    alpha   = 0.05
-    a_bonf  = alpha / n_comp
+    pairs  = [(i, j) for i in range(n) for j in range(i + 1, n)]
+    n_comp = max(len(pairs), 1)
+    alpha  = 0.05
 
     raw_pvals = []
     for i, j in pairs:
@@ -2382,11 +2405,8 @@ def generate_pvalue_table(methods_gu: dict,
     if raw_pvals:
         reject_bh, pvals_bh, _, _ = multipletests(
             raw_pvals, alpha=alpha, method="fdr_bh")
-        reject_bf, pvals_bf, _, _ = multipletests(
-            raw_pvals, alpha=alpha, method="bonferroni")
     else:
         reject_bh, pvals_bh = [], []
-        reject_bf, pvals_bf = [], []
 
     matrix = np.full((n, n), np.nan)
     for k_idx, (i, j) in enumerate(pairs):
@@ -2400,26 +2420,21 @@ def generate_pvalue_table(methods_gu: dict,
     print(f"  Pairs : {n_comp}  |  n = 100 (10 gestures x 10 users)")
     print(f"  Test  : Paired Wilcoxon signed-rank on per-(gesture, user) "
           f"accuracies")
-    print(f"  Corrections : Bonferroni (alpha = {a_bonf:.4f}) + "
-          f"Benjamini-Hochberg FDR @ 5%")
+    print(f"  Correction : Benjamini-Hochberg FDR @ {alpha*100:.0f}%")
     print(sep)
     print("\n  RAW Wilcoxon p-value matrix (symmetric):")
     print(df_raw.round(4).to_string())
 
     hdr = (f"\n  {'Method A':<18} {'Method B':<18} "
-           f"{'p_raw':>9}  {'p_BH':>9}  {'BH sig':>7}  "
-           f"{'p_Bonf':>9}  {'Bonf sig':>9}")
+           f"{'p_raw':>9}  {'p_BH':>9}  {'BH sig':>7}")
     print(hdr)
-    print("  " + "-" * 95)
+    print("  " + "-" * 70)
     for k_idx, (i, j) in enumerate(pairs):
-        na, nb  = names[i], names[j]
-        p_r     = raw_pvals[k_idx]
-        p_bh    = float(pvals_bh[k_idx])
-        bh_ok   = "YES *" if reject_bh[k_idx] else "no"
-        p_bf    = float(pvals_bf[k_idx])
-        bf_ok   = "YES *" if reject_bf[k_idx] else "no"
-        print(f"  {na:<18} {nb:<18} {p_r:>9.4f}  {p_bh:>9.4f}  "
-              f"{bh_ok:>7}  {p_bf:>9.4f}  {bf_ok:>9}")
+        na, nb = names[i], names[j]
+        p_r    = raw_pvals[k_idx]
+        p_bh   = float(pvals_bh[k_idx])
+        bh_ok  = "YES *" if reject_bh[k_idx] else "no"
+        print(f"  {na:<18} {nb:<18} {p_r:>9.4f}  {p_bh:>9.4f}  {bh_ok:>7}")
 
     means = {name: float(np.nanmean(gu))
              for name, gu in methods_gu.items()}
@@ -2431,8 +2446,7 @@ def generate_pvalue_table(methods_gu: dict,
         if best_idx in (i, j) and not reject_bh[k_idx]:
             other = names[j] if i == best_idx else names[i]
             print(f"  -> {best} NOT significantly better than {other} "
-                  f"(BH p={pvals_bh[k_idx]:.4f}, "
-                  f"Bonf p={pvals_bf[k_idx]:.4f})")
+                  f"(BH p={pvals_bh[k_idx]:.4f})")
             all_sig = False
     if all_sig and len(pairs) > 0:
         print(f"  -> {best} is significantly better than ALL others (BH)")
@@ -2535,13 +2549,20 @@ def compute_cm_rf(data_denoised: list, labels: list, users: list,
                    folds: list,
                    evr_list: list | None = None,
                    title: str = "Confusion matrix - RF") -> None:
-    X      = build_feature_dataset(data_denoised, evr_list)
-    y      = np.array(labels)
+    X     = build_feature_dataset(data_denoised, evr_list)
+    y     = np.array(labels)
+    names = feature_names(with_evr=(evr_list is not None))
     y_true, y_pred = [], []
     for tr, te in folds:
-        clf = _rf_fit_with_grid(X[tr], y[tr])
+        X_tr_full = X[tr]
+        y_tr      = y[tr]
+        kept = _select_features_per_fold(X_tr_full, y_tr, names)
+        cols = [names.index(n) for n in kept]
+        X_tr = X_tr_full[:, cols]
+        X_te = X[te][:, cols]
+        clf = _rf_fit_with_grid(X_tr, y_tr)
         y_true.extend(y[te].tolist())
-        y_pred.extend(clf.predict(X[te]).tolist())
+        y_pred.extend(clf.predict(X_te).tolist())
     _plot_cm(y_true, y_pred, sorted(set(labels)), title)
 
 
@@ -2549,13 +2570,20 @@ def compute_cm_dt(data_denoised: list, labels: list, users: list,
                    folds: list,
                    evr_list: list | None = None,
                    title: str = "Confusion matrix - DT") -> None:
-    X      = build_feature_dataset(data_denoised, evr_list)
-    y      = np.array(labels)
+    X     = build_feature_dataset(data_denoised, evr_list)
+    y     = np.array(labels)
+    names = feature_names(with_evr=(evr_list is not None))
     y_true, y_pred = [], []
     for tr, te in folds:
-        clf = _dt_fit_with_grid(X[tr], y[tr])
+        X_tr_full = X[tr]
+        y_tr      = y[tr]
+        kept = _select_features_per_fold(X_tr_full, y_tr, names)
+        cols = [names.index(n) for n in kept]
+        X_tr = X_tr_full[:, cols]
+        X_te = X[te][:, cols]
+        clf = _dt_fit_with_grid(X_tr, y_tr)
         y_true.extend(y[te].tolist())
-        y_pred.extend(clf.predict(X[te]).tolist())
+        y_pred.extend(clf.predict(X_te).tolist())
     _plot_cm(y_true, y_pred, sorted(set(labels)), title)
 
 
@@ -2563,13 +2591,20 @@ def compute_cm_lr(data_denoised: list, labels: list, users: list,
                    folds: list,
                    evr_list: list | None = None,
                    title: str = "Confusion matrix - LR") -> None:
-    X      = build_feature_dataset(data_denoised, evr_list)
-    y      = np.array(labels)
+    X     = build_feature_dataset(data_denoised, evr_list)
+    y     = np.array(labels)
+    names = feature_names(with_evr=(evr_list is not None))
     y_true, y_pred = [], []
     for tr, te in folds:
-        clf = _lr_fit_with_grid(X[tr], y[tr])
+        X_tr_full = X[tr]
+        y_tr      = y[tr]
+        kept = _select_features_per_fold(X_tr_full, y_tr, names)
+        cols = [names.index(n) for n in kept]
+        X_tr = X_tr_full[:, cols]
+        X_te = X[te][:, cols]
+        clf = _lr_fit_with_grid(X_tr, y_tr)
         y_true.extend(y[te].tolist())
-        y_pred.extend(clf.predict(X[te]).tolist())
+        y_pred.extend(clf.predict(X_te).tolist())
     _plot_cm(y_true, y_pred, sorted(set(labels)), title)
 
 
@@ -2812,38 +2847,53 @@ if __name__ == "__main__":
     # -- 6. Validation curves for K (empirical iterative selection) -------
     # K_CLUSTERS validation curve: the best K found below IS used in the rest
     # of the pipeline (passed to run_ablation_study / Edit-Distance evals).
+    # Two separate scans are run per domain:
+    #   - on data_std  -> best K for conditions (b) and (c)
+    #   - on data_raw  -> best K for condition (a) only
+    # Rationale: k-means distances in raw vs standardised space have different
+    # scales, so the optimal codebook size may differ (Linde et al. 1980).
     # kNN K validation curve: the curve is computed and saved for transparency
     # (informative for the report) but the pipeline FORCES k=1 in every
     # downstream evaluation. Justification: 1-NN is the canonical gesture
     # recognition baseline (Wobbrock et al. 2007; Mezari & Maglogiannis 2018;
     # Mitra & Acharya 2007). See module docstring decision #8.
     print("\n=== Validation curves - hyperparameter K ===")
-    print("  Domain 1 - K_CLUSTERS scan (Edit Distance UI):")
+    print("  Domain 1 - K_CLUSTERS scan on standardised data (conditions b/c):")
     best_k_clusters_d1 = validation_curve_kclusters(
         data1_std, labels1, users1, folds_ui_1,
         domain=1,
-        save_path=os.path.join(DIR_FIG_VC, "d1_vc_kclusters.png"))
+        save_path=os.path.join(DIR_FIG_VC, "d1_vc_kclusters_std.png"))
+    print("  Domain 1 - K_CLUSTERS scan on raw data (condition a only):")
+    best_k_raw_d1 = validation_curve_kclusters(
+        data1, labels1, users1, folds_ui_1,
+        domain=1,
+        save_path=os.path.join(DIR_FIG_VC, "d1_vc_kclusters_raw.png"))
     print("  Domain 1 - kNN K scan (DTW UI) [informative only, k=1 forced]:")
     _vc_best_knn_d1 = validation_curve_knn(
         data1_std, labels1, users1, folds_ui_1,
         method="dtw", domain=1,
         save_path=os.path.join(DIR_FIG_VC, "d1_vc_knn.png"))
-    print(f"  Domain 1 selected (on standardised data): "
-          f"K_CLUSTERS={best_k_clusters_d1}, "
+    print(f"  Domain 1 selected: K_CLUSTERS(std)={best_k_clusters_d1}, "
+          f"K_CLUSTERS(raw)={best_k_raw_d1}, "
           f"KNN_K=1 (forced; curve optimum was k={_vc_best_knn_d1})")
 
-    print("\n  Domain 4 - K_CLUSTERS scan (Edit Distance UI):")
+    print("\n  Domain 4 - K_CLUSTERS scan on standardised data (conditions b/c):")
     best_k_clusters_d4 = validation_curve_kclusters(
         data4_std, labels4, users4, folds_ui_4,
         domain=4,
-        save_path=os.path.join(DIR_FIG_VC, "d4_vc_kclusters.png"))
+        save_path=os.path.join(DIR_FIG_VC, "d4_vc_kclusters_std.png"))
+    print("  Domain 4 - K_CLUSTERS scan on raw data (condition a only):")
+    best_k_raw_d4 = validation_curve_kclusters(
+        data4, labels4, users4, folds_ui_4,
+        domain=4,
+        save_path=os.path.join(DIR_FIG_VC, "d4_vc_kclusters_raw.png"))
     print("  Domain 4 - kNN K scan (DTW UI) [informative only, k=1 forced]:")
     _vc_best_knn_d4 = validation_curve_knn(
         data4_std, labels4, users4, folds_ui_4,
         method="dtw", domain=4,
         save_path=os.path.join(DIR_FIG_VC, "d4_vc_knn.png"))
-    print(f"  Domain 4 selected (on standardised data): "
-          f"K_CLUSTERS={best_k_clusters_d4}, "
+    print(f"  Domain 4 selected: K_CLUSTERS(std)={best_k_clusters_d4}, "
+          f"K_CLUSTERS(raw)={best_k_raw_d4}, "
           f"KNN_K=1 (forced; curve optimum was k={_vc_best_knn_d4})")
 
     # -- 7. Ablation study --------------------------------------------------
@@ -2855,25 +2905,25 @@ if __name__ == "__main__":
     _, best_prep_d1_ui = run_ablation_study(
         data1, data1_std, data1_denoised, evr1,
         labels1, users1, domain=1, setting="UI",
-        k_clusters=best_k_clusters_d1, knn_k=1)
+        k_clusters=best_k_clusters_d1, k_clusters_raw=best_k_raw_d1, knn_k=1)
 
     print("\n=== Ablation Study - Domain 1 - User-Dependent ===")
     _, best_prep_d1_ud = run_ablation_study(
         data1, data1_std, data1_denoised, evr1,
         labels1, users1, domain=1, setting="UD",
-        k_clusters=best_k_clusters_d1, knn_k=1)
+        k_clusters=best_k_clusters_d1, k_clusters_raw=best_k_raw_d1, knn_k=1)
 
     print("\n=== Ablation Study - Domain 4 - User-Independent ===")
     _, best_prep_d4_ui = run_ablation_study(
         data4, data4_std, data4_denoised, evr4,
         labels4, users4, domain=4, setting="UI",
-        k_clusters=best_k_clusters_d4, knn_k=1)
+        k_clusters=best_k_clusters_d4, k_clusters_raw=best_k_raw_d4, knn_k=1)
 
     print("\n=== Ablation Study - Domain 4 - User-Dependent ===")
     _, best_prep_d4_ud = run_ablation_study(
         data4, data4_std, data4_denoised, evr4,
         labels4, users4, domain=4, setting="UD",
-        k_clusters=best_k_clusters_d4, knn_k=1)
+        k_clusters=best_k_clusters_d4, k_clusters_raw=best_k_raw_d4, knn_k=1)
 
     # -- 7b. Force $1 to (a) raw -------------------------------------------
     # Wobbrock et al. (2007) and Kratz & Rohs (2010) prescribe that $1
