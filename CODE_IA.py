@@ -2825,7 +2825,7 @@ def save_overfitting_table(rows: list, csv_path: str) -> pd.DataFrame:
           "DTW/Edit/$1 are 1-NN, train acc = 1.0 by construction):")
     print("  " + "-" * 65)
     for _, r in df.iterrows():
-        flag = "  <-- higher gap" if r["Gap"] > 0.05 else ""
+        flag = "  <-- higher gap" if r["Gap"] > 0.10 else ""
         print(f"   D{int(r['Domain'])}-{r['Setting']:<2} {r['Method']:<3} "
               f"train={r['TrainAcc']:.3f}  test={r['TestAcc']:.3f}  "
               f"gap={r['Gap']:+.3f}{flag}")
