@@ -105,7 +105,7 @@ Major scientific decisions
 
 5. Random Forest hyperparameters selected per fold via GridSearchCV
    (5-fold inner CV). Feature selection done per-fold using permutation
-   importance (Breiman 2001; Strobl et al. 2007) with a 90% cumulative
+   importance (Breiman 2001; Strobl et al. 2007) with a 95% cumulative
    threshold (Guyon & Elisseeff 2003). NO leakage: importance is fit on
    each outer-fold's training set only.
 
@@ -289,7 +289,7 @@ import sys
 class Logger(object):
     def __init__(self, filename):
         self.terminal = sys.stdout
-        self.log = open(filename, "a", encoding="utf-8")
+        self.log = open(filename, "w", encoding="utf-8")
 
     def write(self, message):
         self.terminal.write(message)  # Writes in the terminal
@@ -390,7 +390,7 @@ VC_KNN_K      = [1, 3, 5, 7, 9]
 DOLLAR_N         = 64           # number of resampled points
 DOLLAR_L         = 1.0          # side of the normalised cube
 DOLLAR_SCORE_DENOM = 0.5 * np.sqrt(3.0) * DOLLAR_L ** 2   # MSE normaliser (Kratz & Rohs 2010)
-DOLLAR_EPSILON     = 0.60   # confidence threshold for scoring heuristic (Kratz & Rohs 2010)
+DOLLAR_EPSILON     = 0.60   # confidence threshold for scoring heuristic (Kratz & Rohs 2010); TODO: verify paper uses 0.50
 
 
 # ---------------------------------------------------------------------------
@@ -680,7 +680,7 @@ def fit_kmeans_and_encode(train_data: list,
                            k: int = K_CLUSTERS,
                            random_state: int = 42) -> tuple[list, list]:
     all_train_points = np.vstack(train_data)
-    kmeans = KMeans(n_clusters=k, random_state=random_state, n_init="auto")
+    kmeans = KMeans(n_clusters=k, random_state=random_state, n_init=10)
     kmeans.fit(all_train_points)
     centroids = kmeans.cluster_centers_
 
@@ -1538,26 +1538,36 @@ def crossval_ud_rf(data_pca: list, labels: list, users: list,
     fold_test_accs, fold_train_accs = [], []
     correct: dict = {}
     feat_counter: dict = {n: 0 for n in names}
-    for fold_num, (tr, te, _te_users) in enumerate(folds):
-        X_tr_full = X[tr]
-        y_tr      = y[tr]
-        kept = _select_features_per_fold(X_tr_full, y_tr, names)
+    for fold_num, (tr, te, te_users) in enumerate(folds):
+        tr_users_arr = [users[i] for i in tr]
+        X_all_tr = X[tr]
+        y_all_tr = y[tr]
+        kept = _select_features_per_fold(X_all_tr, y_all_tr, names)
         for n in kept:
             feat_counter[n] += 1
         cols = [names.index(n) for n in kept]
-        X_tr = X_tr_full[:, cols]
-        X_te = X[te][:, cols]
-        if use_grid_search:
-            clf = _rf_fit_with_grid(X_tr, y_tr)
-        else:
-            clf = RandomForestClassifier(n_estimators=RF_N_TREES,
-                                         max_features=RF_MAX_FEATURES,
-                                         random_state=42, n_jobs=-1)
-            clf.fit(X_tr, y_tr)
-        preds_te = clf.predict(X_te)
-        preds_tr = clf.predict(X_tr)
+        preds_te_list = [None] * len(te)
+        per_user_train_accs = []
+        for ts_user in set(te_users):
+            u_te_pos = [j for j, u in enumerate(te_users) if u == ts_user]
+            same_user_mask = [j for j, u in enumerate(tr_users_arr) if u == ts_user]
+            X_tr_u = X_all_tr[same_user_mask][:, cols]
+            y_tr_u = y_all_tr[same_user_mask]
+            X_te_u = X[[te[j] for j in u_te_pos]][:, cols]
+            if len(X_tr_u) >= _INNER_CV_FOLDS and use_grid_search:
+                clf_u = _rf_fit_with_grid(X_tr_u, y_tr_u)
+            else:
+                clf_u = RandomForestClassifier(n_estimators=RF_N_TREES,
+                                               max_features=RF_MAX_FEATURES,
+                                               random_state=42, n_jobs=-1)
+                clf_u.fit(X_tr_u, y_tr_u)
+            preds_u = clf_u.predict(X_te_u).tolist()
+            per_user_train_accs.append(float(np.mean(clf_u.predict(X_tr_u) == y_tr_u)))
+            for j, pred in zip(u_te_pos, preds_u):
+                preds_te_list[j] = pred
+        preds_te = np.array(preds_te_list)
         test_acc  = float(np.mean(preds_te == y[te]))
-        train_acc = float(np.mean(preds_tr == y_tr))
+        train_acc = float(np.mean(per_user_train_accs))
         fold_test_accs.append(test_acc)
         fold_train_accs.append(train_acc)
         for idx, p in zip(te, preds_te.tolist()):
@@ -1836,20 +1846,34 @@ def crossval_ud_dt(data_pca: list, labels: list, users: list,
     fold_test_accs, fold_train_accs = [], []
     correct: dict = {}
     feat_counter: dict = {n: 0 for n in names}
-    for fold_num, (tr, te, _te_users) in enumerate(folds):
-        X_tr_full = X[tr]
-        y_tr      = y[tr]
-        kept = _select_features_per_fold(X_tr_full, y_tr, names)
+    for fold_num, (tr, te, te_users) in enumerate(folds):
+        tr_users_arr = [users[i] for i in tr]
+        X_all_tr = X[tr]
+        y_all_tr = y[tr]
+        kept = _select_features_per_fold(X_all_tr, y_all_tr, names)
         for n in kept:
             feat_counter[n] += 1
         cols = [names.index(n) for n in kept]
-        X_tr = X_tr_full[:, cols]
-        X_te = X[te][:, cols]
-        clf = _dt_fit_with_grid(X_tr, y_tr)
-        preds_te = clf.predict(X_te)
-        preds_tr = clf.predict(X_tr)
+        preds_te_list = [None] * len(te)
+        per_user_train_accs = []
+        for ts_user in set(te_users):
+            u_te_pos = [j for j, u in enumerate(te_users) if u == ts_user]
+            same_user_mask = [j for j, u in enumerate(tr_users_arr) if u == ts_user]
+            X_tr_u = X_all_tr[same_user_mask][:, cols]
+            y_tr_u = y_all_tr[same_user_mask]
+            X_te_u = X[[te[j] for j in u_te_pos]][:, cols]
+            if len(X_tr_u) >= _INNER_CV_FOLDS:
+                clf_u = _dt_fit_with_grid(X_tr_u, y_tr_u)
+            else:
+                clf_u = DecisionTreeClassifier(random_state=42)
+                clf_u.fit(X_tr_u, y_tr_u)
+            preds_u = clf_u.predict(X_te_u).tolist()
+            per_user_train_accs.append(float(np.mean(clf_u.predict(X_tr_u) == y_tr_u)))
+            for j, pred in zip(u_te_pos, preds_u):
+                preds_te_list[j] = pred
+        preds_te = np.array(preds_te_list)
         test_acc  = float(np.mean(preds_te == y[te]))
-        train_acc = float(np.mean(preds_tr == y_tr))
+        train_acc = float(np.mean(per_user_train_accs))
         fold_test_accs.append(test_acc)
         fold_train_accs.append(train_acc)
         for idx, p in zip(te, preds_te.tolist()):
@@ -1964,20 +1988,39 @@ def crossval_ud_lr(data_pca: list, labels: list, users: list,
     fold_test_accs, fold_train_accs = [], []
     correct: dict = {}
     feat_counter: dict = {n: 0 for n in names}
-    for fold_num, (tr, te, _te_users) in enumerate(folds):
-        X_tr_full = X[tr]
-        y_tr      = y[tr]
-        kept = _select_features_per_fold(X_tr_full, y_tr, names)
+    for fold_num, (tr, te, te_users) in enumerate(folds):
+        tr_users_arr = [users[i] for i in tr]
+        X_all_tr = X[tr]
+        y_all_tr = y[tr]
+        kept = _select_features_per_fold(X_all_tr, y_all_tr, names)
         for n in kept:
             feat_counter[n] += 1
         cols = [names.index(n) for n in kept]
-        X_tr = X_tr_full[:, cols]
-        X_te = X[te][:, cols]
-        clf = _lr_fit_with_grid(X_tr, y_tr)
-        preds_te = clf.predict(X_te)
-        preds_tr = clf.predict(X_tr)
+        preds_te_list = [None] * len(te)
+        per_user_train_accs = []
+        for ts_user in set(te_users):
+            u_te_pos = [j for j, u in enumerate(te_users) if u == ts_user]
+            same_user_mask = [j for j, u in enumerate(tr_users_arr) if u == ts_user]
+            X_tr_u = X_all_tr[same_user_mask][:, cols]
+            y_tr_u = y_all_tr[same_user_mask]
+            X_te_u = X[[te[j] for j in u_te_pos]][:, cols]
+            if len(X_tr_u) >= _INNER_CV_FOLDS:
+                clf_u = _lr_fit_with_grid(X_tr_u, y_tr_u)
+            else:
+                clf_u = Pipeline([
+                    ("scaler", StandardScaler()),
+                    ("lr",     LogisticRegression(solver="lbfgs",
+                                                  max_iter=5000,
+                                                  random_state=42)),
+                ])
+                clf_u.fit(X_tr_u, y_tr_u)
+            preds_u = clf_u.predict(X_te_u).tolist()
+            per_user_train_accs.append(float(np.mean(clf_u.predict(X_tr_u) == y_tr_u)))
+            for j, pred in zip(u_te_pos, preds_u):
+                preds_te_list[j] = pred
+        preds_te = np.array(preds_te_list)
         test_acc  = float(np.mean(preds_te == y[te]))
-        train_acc = float(np.mean(preds_tr == y_tr))
+        train_acc = float(np.mean(per_user_train_accs))
         fold_test_accs.append(test_acc)
         fold_train_accs.append(train_acc)
         for idx, p in zip(te, preds_te.tolist()):
@@ -2533,7 +2576,8 @@ def compute_cm_edit(data_denoised: list, labels: list, users: list,
                      folds: list,
                      title: str = "Confusion matrix - Edit Distance") -> None:
     y_true, y_pred = [], []
-    for tr, te in folds:
+    for fold in folds:
+        tr, te = fold[0], fold[1]
         tr_data   = [data_denoised[i] for i in tr]
         te_data   = [data_denoised[i] for i in te]
         tr_labels = [labels[i]        for i in tr]
@@ -2554,7 +2598,8 @@ def compute_cm_dtw(data_denoised: list, labels: list, users: list,
                     folds: list,
                     title: str = "Confusion matrix - DTW") -> None:
     y_true, y_pred = [], []
-    for tr, te in folds:
+    for fold in folds:
+        tr, te = fold[0], fold[1]
         tr_items  = [data_denoised[i] for i in tr]
         tr_labels = [labels[i]        for i in tr]
         te_items  = [data_denoised[i] for i in te]
@@ -2577,7 +2622,8 @@ def compute_cm_rf(data_denoised: list, labels: list, users: list,
     y     = np.array(labels)
     names = feature_names(with_evr=(evr_list is not None))
     y_true, y_pred = [], []
-    for tr, te in folds:
+    for fold in folds:
+        tr, te = fold[0], fold[1]
         X_tr_full = X[tr]
         y_tr      = y[tr]
         kept = _select_features_per_fold(X_tr_full, y_tr, names)
@@ -2598,7 +2644,8 @@ def compute_cm_dt(data_denoised: list, labels: list, users: list,
     y     = np.array(labels)
     names = feature_names(with_evr=(evr_list is not None))
     y_true, y_pred = [], []
-    for tr, te in folds:
+    for fold in folds:
+        tr, te = fold[0], fold[1]
         X_tr_full = X[tr]
         y_tr      = y[tr]
         kept = _select_features_per_fold(X_tr_full, y_tr, names)
@@ -2619,7 +2666,8 @@ def compute_cm_lr(data_denoised: list, labels: list, users: list,
     y     = np.array(labels)
     names = feature_names(with_evr=(evr_list is not None))
     y_true, y_pred = [], []
-    for tr, te in folds:
+    for fold in folds:
+        tr, te = fold[0], fold[1]
         X_tr_full = X[tr]
         y_tr      = y[tr]
         kept = _select_features_per_fold(X_tr_full, y_tr, names)
@@ -2637,7 +2685,8 @@ def compute_cm_dollar(data: list, labels: list, users: list,
                        title: str = "Confusion matrix - $1") -> None:
     pre_all = [dollar_preprocess(seq) for seq in data]
     y_true, y_pred = [], []
-    for tr, te in folds:
+    for fold in folds:
+        tr, te = fold[0], fold[1]
         tmpl_pre = [pre_all[i] for i in tr]
         tmpl_lbl = [labels[i]  for i in tr]
         te_pre   = [pre_all[i] for i in te]
@@ -3027,18 +3076,6 @@ if __name__ == "__main__":
         if cond == "(b) Standardisation":
             return std, None
         return denoised, evr
-
-    print("\n=== RF permutation-importance analysis (post-hoc only) ===")
-    rf_d1_data, rf_d1_evr = _data_for(best_prep_d1_ui["RF"],
-                                        data1, data1_std, data1_denoised, evr1)
-    analyse_rf_feature_importances(
-        rf_d1_data, labels1, rf_d1_evr, domain=1,
-        save_path=os.path.join(DIR_FIG_FI, "d1_rf_feature_importance.png"))
-    rf_d4_data, rf_d4_evr = _data_for(best_prep_d4_ui["RF"],
-                                        data4, data4_std, data4_denoised, evr4)
-    analyse_rf_feature_importances(
-        rf_d4_data, labels4, rf_d4_evr, domain=4,
-        save_path=os.path.join(DIR_FIG_FI, "d4_rf_feature_importance.png"))
 
     # -- 9-10. Read out UI + UD results from the ablation dicts ------------
     METHODS_ORDER  = ["Edit Distance", "DTW", "DT", "RF", "LR", "$1"]
