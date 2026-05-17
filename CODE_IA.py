@@ -390,7 +390,7 @@ VC_KNN_K      = [1, 3, 5, 7, 9]
 DOLLAR_N         = 64           # number of resampled points
 DOLLAR_L         = 1.0          # side of the normalised cube
 DOLLAR_SCORE_DENOM = 0.5 * np.sqrt(3.0) * DOLLAR_L ** 2   # MSE normaliser (Kratz & Rohs 2010)
-DOLLAR_EPSILON     = 0.60   # confidence threshold for scoring heuristic (Kratz & Rohs 2010); TODO: verify paper uses 0.50
+DOLLAR_EPSILON     = 0.60   # confidence threshold for scoring heuristic (Kratz & Rohs 2010);
 
 
 # ---------------------------------------------------------------------------
