@@ -153,7 +153,7 @@ Major scientific decisions
 10. Logistic Regression (multinomial, L2 penalty, lbfgs solver). Linear
     classifier baseline. References: Cox (1958); Hosmer, Lemeshow &
     Sturdivant (2013); Hastie, Tibshirani & Friedman (2009) §4.4.
-    Acts as a lower-bound reference: a linear model on the same feature
+    Acts as a linear baseline reference: a linear model on the same feature
     vector.
 
 12. $1 Recognizer evaluated on RAW data ONLY (preprocessing condition
@@ -396,7 +396,7 @@ VC_K_CLUSTERS = [5, 10, 15, 20, 25, 30, 40]
 VC_KNN_K      = [1, 3, 5, 7, 9]
 
 # $1 Recognizer hyperparameters (Kratz & Rohs, 2010)
-DOLLAR_N         = 64           # number of resampled points
+DOLLAR_N         = 150           # number of resampled points
 DOLLAR_L         = 1.0          # side of the normalised cube
 DOLLAR_SCORE_DENOM = 0.5 * np.sqrt(3.0) * DOLLAR_L ** 2   # MSE normaliser (Kratz & Rohs 2010)
 DOLLAR_EPSILON     = 0.60   # confidence threshold for scoring heuristic (Kratz & Rohs 2010);
