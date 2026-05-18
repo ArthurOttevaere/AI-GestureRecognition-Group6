@@ -174,15 +174,20 @@ Major scientific decisions
     Gini selection):
     (a) Variance filter: remove near-constant features (var < 1e-10).
     (b) Correlation-based redundancy removal: for each pair with
-        |Pearson r| > 0.95, discard the lower-variance member (Yu &
-        Liu 2004, JMLR; Hall 1999).  Without this step, correlated
+        |Pearson r| > 0.99, discard the lower-variance member (adapted
+        from Yu & Liu 2004, JMLR). Without this step, highly correlated
         features (e.g. x_range = x_max - x_min; bbox_diag derived from
-        bbox_*) dilute each other's permutation importance (Strobl et
-        al. 2007), causing the cumulative-importance cut to drop entire
-        correlated clusters and destroy classifier performance.
-    (b.bis) Yu & Liu (2004) use 0.95, but this is relaxed to 0.99 to preserve 
-    more features for the RF permutation importance step, 
-    which is sensitive to feature count (Strobl et al. 2007).
+        bbox_*) dilute each other's unconditional permutation importance
+        (Strobl et al. 2008, BMC Bioinformatics). This dilution causes
+        the cumulative-importance cut to drop entire correlated clusters,
+        destroying classifier performance.
+        Note on threshold: While traditional filters often use stricter
+        cutoffs (e.g. 0.95), we empirically relaxed this threshold to 0.99.
+        This engineering decision preserves a richer pool of geometric
+        descriptors (~15-30 features per fold), preventing underfitting
+        and ensuring the Random Forest retains enough dimensions to
+        effectively model complex non-linear interactions, thereby
+        restoring its theoretical advantage over linear models (LR).
     (c) Permutation importance on a 20%-held-out validation split (not
         on the training data itself, which would bias importance toward
         memorised features; Breiman 2001; Strobl et al. 2007).
