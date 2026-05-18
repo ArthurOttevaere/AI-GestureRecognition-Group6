@@ -1,0 +1,111 @@
+\documentclass[a4paper,11pt]{article}
+
+% --- Preamble ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{booktabs} % Pour des tableaux professionnels
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{xcolor}
+
+\geometry{margin=25mm}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+
+% --- Title Information ---
+\title{\textbf{Rapport de Résultats : Reconnaissance de Gestes 3D}\\ \large Intelligence Artificielle (MLSM2154)}
+\author{Arthur Ottevaere \and Andry Lenny \and El Mohcine Mohamed \\ \small Groupe 6 --- UCLouvain FUCaM Mons}
+\date{Mai 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Ce document synthétise les résultats obtenus lors de l'implémentation d'une chaîne de traitement complète pour la reconnaissance de gestes en trois dimensions. Nous comparons sept méthodes de classification à travers deux domaines et deux protocoles d'évaluation (User-Dependent et User-Independent). L'étude met en évidence l'importance cruciale de la régularisation des modèles paramétriques et la robustesse des méthodes basées sur la distance temporelle.
+\end{abstract}
+
+\section{Méthodologie et Décisions Scientifiques}
+
+\subsection{Prétraitement et Mise à l'Échelle}
+La littérature souligne que la reconnaissance de trajectoires est extrêmement sensible à la déformation géométrique. Nous avons testé trois conditions :
+\begin{itemize}
+    \item \textbf{(a) Raw :} Données brutes.
+    \item \textbf{(b) Uniform Scaling :} Mise à l'échelle uniforme préservant le ratio d'aspect. Contrairement à une standardisation par axe (Z-score), cette méthode ne distord pas la forme du geste, ce qui est critique pour les descripteurs de boîte englobante (\textit{bbox}) et de courbure.
+    \item \textbf{(c) PCA Denoising :} Réduction de dimension (3D $\to$ 2D $\to$ 3D). Nos résultats montrent que cette méthode est systématiquement sous-performante, car elle ampute la composante de profondeur essentielle à la distinction de formes complexes (Domaine 4).
+\end{itemize}
+
+\subsection{Régularisation et Feature Selection}
+Pour contrer l'overfitting observé lors des premières itérations (gaps Train-Test $> 30\%$), nous avons mis en place :
+\begin{enumerate}
+    \item \textbf{Nested Cross-Validation :} Les hyperparamètres des modèles (RF, SVM, LR, DT) sont sélectionnés par \texttt{GridSearchCV} sur 5 plis internes, évitant ainsi toute fuite de données (\textit{leakage}).
+    \item \textbf{Élagage des arbres :} Limitation de la profondeur (\texttt{max\_depth}) et imposition d'un nombre minimum d'échantillons par feuille (\texttt{min\_samples\_leaf}).
+    \item \textbf{Pipeline de Sélection :} Un filtrage de variance suivi d'une suppression des redondances par corrélation Pearson ($|r| > 0.95$) a permis de stabiliser l'importance de permutation (Strobl et al., 2007).
+\end{enumerate}
+
+\section{Résultats Expérimentaux}
+
+Le tableau \ref{tab:final_results} présente la précision moyenne obtenue pour chaque configuration.
+
+\begin{table}[H]
+\centering
+\caption{Performances finales (Accuracy $\pm$ Std). Sélection automatique du meilleur prétraitement par méthode.}
+\label{tab:final_results}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llccccccc}
+\toprule
+\textbf{Dom.} & \textbf{Set.} & \textbf{\$1 Recog.} & \textbf{DT} & \textbf{DTW} & \textbf{Edit Dist.} & \textbf{LR} & \textbf{RF} & \textbf{SVM} \\ 
+\midrule
+\multirow{2}{*}{\textbf{D1}} & UD & \textbf{0.998 $\pm$ 0.004} & 0.865 $\pm$ 0.055 & 0.988 $\pm$ 0.010 & 0.978 $\pm$ 0.014 & 0.897 $\pm$ 0.062 & 0.911 $\pm$ 0.037 & 0.935 $\pm$ 0.049 \\
+                   & UI & \textbf{0.956 $\pm$ 0.042} & 0.825 $\pm$ 0.068 & 0.918 $\pm$ 0.097 & 0.864 $\pm$ 0.135 & 0.858 $\pm$ 0.113 & 0.890 $\pm$ 0.070 & 0.881 $\pm$ 0.071 \\ 
+\midrule
+\multirow{2}{*}{\textbf{D4}} & UD & 0.978 $\pm$ 0.020 & 0.863 $\pm$ 0.040 & \textbf{0.987 $\pm$ 0.020} & 0.983 $\pm$ 0.014 & 0.925 $\pm$ 0.022 & 0.937 $\pm$ 0.024 & 0.953 $\pm$ 0.022 \\
+                   & UI & 0.825 $\pm$ 0.083 & 0.768 $\pm$ 0.096 & \textbf{0.865 $\pm$ 0.078} & 0.857 $\pm$ 0.068 & 0.836 $\pm$ 0.056 & 0.833 $\pm$ 0.114 & 0.828 $\pm$ 0.109 \\ 
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{Analyse de l'Overfitting (Variance)}
+
+L'introduction de paramètres de régularisation a permis de réduire drastiquement l'écart entre les performances d'entraînement et de test.
+
+\begin{table}[H]
+\centering
+\caption{Diagnostic de variance pour les classifieurs paramétriques (Données régularisées).}
+\label{tab:overfitting}
+\begin{tabular}{llcccc}
+\toprule
+\textbf{Setting} & \textbf{Modèle} & \textbf{Train Acc.} & \textbf{Test Acc.} & \textbf{Écart (Gap)} & \textbf{Verdict} \\ 
+\midrule
+\multirow{3}{*}{D4-UD} 
+ & RF & 0.979 & 0.937 & \textbf{+0.042} & Maîtrisé \\
+ & SVM & 0.967 & 0.953 & \textbf{+0.014} & \textbf{Optimal} \\
+ & LR & 0.942 & 0.925 & \textbf{+0.017} & \textbf{Optimal} \\
+\midrule
+\multirow{3}{*}{D4-UI} 
+ & RF & 0.979 & 0.833 & +0.146 & Variance modérée \\
+ & SVM & 0.962 & 0.828 & +0.134 & Variance modérée \\
+ & LR & 0.921 & 0.836 & +0.085 & Maîtrisé \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Interprétation :} L'écart résiduel en mode User-Independent (UI) n'est plus imputable à un défaut algorithmique, mais à la \textit{variance humaine}. La variabilité d'exécution entre les sujets sur des formes 3D complexes (Domaine 4) impose une limite naturelle à la généralisation.
+
+\section{Analyse Statistique}
+Le test de Wilcoxon apparié (n=100) avec correction Benjamini-目Hochberg révèle :
+\begin{itemize}
+    \item \textbf{Domaine 1 :} Le \$1 Recognizer est statistiquement supérieur aux modèles basés sur les features (RF, SVM, LR), mais reste au coude-à-coude avec la DTW ($p=0.0679$).
+    \item \textbf{Domaine 4 :} Bien que la DTW affiche la meilleure moyenne, elle n'est pas significativement meilleure que le SVM ou le RF ($p > 0.50$). La régularisation a permis aux modèles ML de rejoindre le niveau des baselines de l'état de l'art.
+\end{itemize}
+
+\section{Conclusion}
+Ce projet démontre que si le \textit{User-Dependent} est un problème résolu ($>95\%$), le \textit{User-Independent} nécessite une approche hybride. Le \$1 Recognizer reste l'outil de choix pour la simplicité et la robustesse géométrique, tandis que la DTW offre la meilleure flexibilité sur les gestes complexes, à condition d'accepter un coût computationnel plus élevé.
+
+\end{document}
