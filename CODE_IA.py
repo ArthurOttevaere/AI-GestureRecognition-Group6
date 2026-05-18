@@ -180,6 +180,9 @@ Major scientific decisions
         bbox_*) dilute each other's permutation importance (Strobl et
         al. 2007), causing the cumulative-importance cut to drop entire
         correlated clusters and destroy classifier performance.
+    (b.bis) Yu & Liu (2004) use 0.95, but this is relaxed to 0.99 to preserve 
+    more features for the RF permutation importance step, 
+    which is sensitive to feature count (Strobl et al. 2007).
     (c) Permutation importance on a 20%-held-out validation split (not
         on the training data itself, which would bias importance toward
         memorised features; Breiman 2001; Strobl et al. 2007).
@@ -380,7 +383,8 @@ FEATURE_SELECTION_N_REPEATS     = 10
 # Pearson |r| threshold for correlation-based redundancy removal.
 # Features with |r| > FEATURE_CORR_THRESHOLD are considered redundant;
 # the member with lower variance is discarded (Yu & Liu 2004, JMLR §4).
-FEATURE_CORR_THRESHOLD          = 0.99 # Yu & Liu (2004) use 0.95, but this is relaxed to 0.99 to preserve more features for the RF permutation importance step, which is sensitive to feature count (Strobl et al. 2007).
+FEATURE_CORR_THRESHOLD          = 0.99 # Yu & Liu (2004) use 0.95, but this is relaxed to 0.99 to preserve more features for the RF permutation importance step, 
+                                       # which is sensitive to feature count (Strobl et al. 2007).
 
 # Validation-curve scan ranges (Section 5 of instructions)
 VC_K_CLUSTERS = [5, 10, 15, 20, 25, 30, 40]
