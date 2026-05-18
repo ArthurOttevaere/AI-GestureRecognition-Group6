@@ -194,7 +194,7 @@ Warming up numba JIT ... done.
       ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x', 'path_y']
     Feature selection summary (top-5): ['x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'path_x']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ui_d1.csv
     [(a) No preprocessing] LR: 0.864 +/- 0.171
-    $1   (UI) - User 0 held out -> acc = 0.990
+    $1   (UI) - User 0 held out -> acc = 0.980
     $1   (UI) - User 1 held out -> acc = 1.000
     $1   (UI) - User 2 held out -> acc = 1.000
     $1   (UI) - User 3 held out -> acc = 1.000
@@ -204,7 +204,7 @@ Warming up numba JIT ... done.
     $1   (UI) - User 7 held out -> acc = 1.000
     $1   (UI) - User 8 held out -> acc = 0.990
     $1   (UI) - User 9 held out -> acc = 1.000
-    [(a) No preprocessing] $1: 0.993 +/- 0.010
+    [(a) No preprocessing] $1: 0.992 +/- 0.011
 
   (b) Standardisation only
     Edit (UI) - User 0 held out -> acc = 0.970
@@ -295,17 +295,17 @@ Warming up numba JIT ... done.
       ['x_min', 'y_max', 'y_kurt', 'z_min', 'speed_mean', 'arc_length', 'speed_seg1', 'speed_seg2', 'path_x', 'path_y']
     Feature selection summary (top-5): ['x_min', 'path_x', 'path_y', 'y_max', 'x_kurt']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ui_d1.csv
     [(b) Standardisation] LR: 0.870 +/- 0.093
-    $1   (UI) - User 0 held out -> acc = 0.950
-    $1   (UI) - User 1 held out -> acc = 0.940
+    $1   (UI) - User 0 held out -> acc = 0.940
+    $1   (UI) - User 1 held out -> acc = 0.930
     $1   (UI) - User 2 held out -> acc = 0.960
     $1   (UI) - User 3 held out -> acc = 0.960
-    $1   (UI) - User 4 held out -> acc = 0.790
-    $1   (UI) - User 5 held out -> acc = 0.700
-    $1   (UI) - User 6 held out -> acc = 0.860
-    $1   (UI) - User 7 held out -> acc = 0.890
-    $1   (UI) - User 8 held out -> acc = 0.890
-    $1   (UI) - User 9 held out -> acc = 0.960
-    [(b) Standardisation] $1: 0.890 +/- 0.082
+    $1   (UI) - User 4 held out -> acc = 0.770
+    $1   (UI) - User 5 held out -> acc = 0.680
+    $1   (UI) - User 6 held out -> acc = 0.840
+    $1   (UI) - User 7 held out -> acc = 0.910
+    $1   (UI) - User 8 held out -> acc = 0.910
+    $1   (UI) - User 9 held out -> acc = 0.950
+    [(b) Standardisation] $1: 0.885 +/- 0.089
 
   (c) Standardisation + PCA denoising 3D->2D->3D
     Edit (UI) - User 0 held out -> acc = 0.840
@@ -396,17 +396,17 @@ Warming up numba JIT ... done.
       ['x_std', 'x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_std', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_min', 'z_skew', 'z_kurt', 'speed_mean', 'speed_std', 'speed_max', 'accel_mean', 'arc_length', 'curv_mean', 'curv_std', 'speed_seg1', 'path_x', 'path_y', 'evr_pc2', 'evr_pc3']
     Feature selection summary (top-5): ['x_skew', 'y_min', 'path_x', 'path_y', 'x_min']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ui_d1.csv
     [(c) Std + PCA denoise] LR: 0.823 +/- 0.112  [3 PCA EVR values added to LR feature vector]
-    $1   (UI) - User 0 held out -> acc = 0.910
-    $1   (UI) - User 1 held out -> acc = 0.860
-    $1   (UI) - User 2 held out -> acc = 0.980
+    $1   (UI) - User 0 held out -> acc = 0.900
+    $1   (UI) - User 1 held out -> acc = 0.840
+    $1   (UI) - User 2 held out -> acc = 0.990
     $1   (UI) - User 3 held out -> acc = 0.980
     $1   (UI) - User 4 held out -> acc = 0.780
     $1   (UI) - User 5 held out -> acc = 0.780
-    $1   (UI) - User 6 held out -> acc = 0.780
-    $1   (UI) - User 7 held out -> acc = 0.890
-    $1   (UI) - User 8 held out -> acc = 0.770
-    $1   (UI) - User 9 held out -> acc = 0.930
-    [(c) Std + PCA denoise] $1: 0.866 +/- 0.080
+    $1   (UI) - User 6 held out -> acc = 0.790
+    $1   (UI) - User 7 held out -> acc = 0.870
+    $1   (UI) - User 8 held out -> acc = 0.760
+    $1   (UI) - User 9 held out -> acc = 0.910
+    [(c) Std + PCA denoise] $1: 0.860 +/- 0.080
 
   ------------------------------------------------------------
   Best preprocessing per method - Domain 1 (UI):
@@ -416,14 +416,14 @@ Warming up numba JIT ... done.
     DT              : (b) Standardisation  (mean acc = 0.827 +/- 0.081)
     RF              : (b) Standardisation  (mean acc = 0.912 +/- 0.055)
     LR              : (b) Standardisation  (mean acc = 0.870 +/- 0.093)
-    $1              : (a) No preprocessing  (mean acc = 0.993 +/- 0.010)
+    $1              : (a) No preprocessing  (mean acc = 0.992 +/- 0.011)
 
   Ablation summary - Domain 1 (UI):
 Method                              $1               DT              DTW    Edit Distance               LR               RF
 Preprocessing                                                                                                              
-(a) No preprocessing   0.993 +/- 0.010  0.685 +/- 0.068  0.624 +/- 0.167  0.552 +/- 0.189  0.864 +/- 0.171  0.791 +/- 0.095
-(b) Standardisation    0.890 +/- 0.082  0.827 +/- 0.081  0.918 +/- 0.097  0.869 +/- 0.138  0.870 +/- 0.093  0.912 +/- 0.055
-(c) Std + PCA denoise  0.866 +/- 0.080  0.682 +/- 0.111  0.879 +/- 0.108  0.828 +/- 0.140  0.823 +/- 0.112  0.808 +/- 0.059
+(a) No preprocessing   0.992 +/- 0.011  0.685 +/- 0.068  0.624 +/- 0.167  0.552 +/- 0.189  0.864 +/- 0.171  0.791 +/- 0.095
+(b) Standardisation    0.885 +/- 0.089  0.827 +/- 0.081  0.918 +/- 0.097  0.869 +/- 0.138  0.870 +/- 0.093  0.912 +/- 0.055
+(c) Std + PCA denoise  0.860 +/- 0.080  0.682 +/- 0.111  0.879 +/- 0.108  0.828 +/- 0.140  0.823 +/- 0.112  0.808 +/- 0.059
   Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/ablation/ablation_domain1_ui.csv
 
 === Ablation Study - Domain 1 - User-Dependent ===
@@ -622,17 +622,17 @@ Preprocessing
       ['x_max', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'arc_length', 'speed_seg2', 'path_x', 'path_y', 'path_z']
     Feature selection summary (top-5): ['y_max', 'path_x', 'path_y', 'x_min', 'y_min']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ud_d1.csv
     [(b) Standardisation] LR: 0.956 +/- 0.037
-    $1   (UD) - Fold 0 -> acc = 0.930
-    $1   (UD) - Fold 1 -> acc = 0.950
-    $1   (UD) - Fold 2 -> acc = 0.930
-    $1   (UD) - Fold 3 -> acc = 0.970
+    $1   (UD) - Fold 0 -> acc = 0.940
+    $1   (UD) - Fold 1 -> acc = 0.960
+    $1   (UD) - Fold 2 -> acc = 0.940
+    $1   (UD) - Fold 3 -> acc = 0.980
     $1   (UD) - Fold 4 -> acc = 0.970
-    $1   (UD) - Fold 5 -> acc = 0.970
+    $1   (UD) - Fold 5 -> acc = 0.960
     $1   (UD) - Fold 6 -> acc = 0.960
     $1   (UD) - Fold 7 -> acc = 0.970
     $1   (UD) - Fold 8 -> acc = 0.980
     $1   (UD) - Fold 9 -> acc = 0.960
-    [(b) Standardisation] $1: 0.959 +/- 0.016
+    [(b) Standardisation] $1: 0.962 +/- 0.013
 
   (c) Standardisation + PCA denoising 3D->2D->3D
     Edit (UD) - Fold 0 -> acc = 0.930
@@ -724,16 +724,16 @@ Preprocessing
     Feature selection summary (top-5): ['arc_length', 'path_x', 'path_y', 'y_min', 'speed_seg1']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ud_d1.csv
     [(c) Std + PCA denoise] LR: 0.917 +/- 0.061  [3 PCA EVR values added to LR feature vector]
     $1   (UD) - Fold 0 -> acc = 0.920
-    $1   (UD) - Fold 1 -> acc = 0.890
+    $1   (UD) - Fold 1 -> acc = 0.900
     $1   (UD) - Fold 2 -> acc = 0.910
     $1   (UD) - Fold 3 -> acc = 0.960
-    $1   (UD) - Fold 4 -> acc = 0.920
-    $1   (UD) - Fold 5 -> acc = 0.930
+    $1   (UD) - Fold 4 -> acc = 0.930
+    $1   (UD) - Fold 5 -> acc = 0.950
     $1   (UD) - Fold 6 -> acc = 0.930
     $1   (UD) - Fold 7 -> acc = 0.950
     $1   (UD) - Fold 8 -> acc = 0.950
     $1   (UD) - Fold 9 -> acc = 0.950
-    [(c) Std + PCA denoise] $1: 0.931 +/- 0.021
+    [(c) Std + PCA denoise] $1: 0.935 +/- 0.019
 
   ------------------------------------------------------------
   Best preprocessing per method - Domain 1 (UD):
@@ -749,8 +749,8 @@ Preprocessing
 Method                              $1               DT              DTW    Edit Distance               LR               RF
 Preprocessing                                                                                                              
 (a) No preprocessing   0.999 +/- 0.003  0.825 +/- 0.077  0.978 +/- 0.022  0.964 +/- 0.031  0.955 +/- 0.037  0.949 +/- 0.045
-(b) Standardisation    0.959 +/- 0.016  0.875 +/- 0.049  0.988 +/- 0.010  0.972 +/- 0.022  0.956 +/- 0.037  0.956 +/- 0.035
-(c) Std + PCA denoise  0.931 +/- 0.021  0.766 +/- 0.074  0.967 +/- 0.013  0.972 +/- 0.019  0.917 +/- 0.061  0.888 +/- 0.094
+(b) Standardisation    0.962 +/- 0.013  0.875 +/- 0.049  0.988 +/- 0.010  0.972 +/- 0.022  0.956 +/- 0.037  0.956 +/- 0.035
+(c) Std + PCA denoise  0.935 +/- 0.019  0.766 +/- 0.074  0.967 +/- 0.013  0.972 +/- 0.019  0.917 +/- 0.061  0.888 +/- 0.094
   Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/ablation/ablation_domain1_ud.csv
 
 === Ablation Study - Domain 4 - User-Independent ===
@@ -848,17 +848,17 @@ Preprocessing
       ['x_std', 'x_max', 'x_skew', 'x_kurt', 'y_skew', 'y_kurt', 'z_std', 'z_kurt', 'speed_mean', 'speed_std', 'arc_length', 'speed_seg3', 'path_y']
     Feature selection summary (top-5): ['x_kurt', 'y_skew', 'y_kurt', 'z_kurt', 'path_y']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ui_d4.csv
     [(a) No preprocessing] LR: 0.851 +/- 0.105
-    $1   (UI) - User 0 held out -> acc = 0.800
+    $1   (UI) - User 0 held out -> acc = 0.780
     $1   (UI) - User 1 held out -> acc = 0.800
-    $1   (UI) - User 2 held out -> acc = 0.750
-    $1   (UI) - User 3 held out -> acc = 0.840
+    $1   (UI) - User 2 held out -> acc = 0.770
+    $1   (UI) - User 3 held out -> acc = 0.860
     $1   (UI) - User 4 held out -> acc = 0.730
-    $1   (UI) - User 5 held out -> acc = 0.870
+    $1   (UI) - User 5 held out -> acc = 0.880
     $1   (UI) - User 6 held out -> acc = 0.980
-    $1   (UI) - User 7 held out -> acc = 0.830
+    $1   (UI) - User 7 held out -> acc = 0.810
     $1   (UI) - User 8 held out -> acc = 0.920
     $1   (UI) - User 9 held out -> acc = 0.680
-    [(a) No preprocessing] $1: 0.820 +/- 0.085
+    [(a) No preprocessing] $1: 0.821 +/- 0.085
 
   (b) Standardisation only
     Edit (UI) - User 0 held out -> acc = 0.900
@@ -949,17 +949,17 @@ Preprocessing
       ['x_min', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_skew', 'z_kurt', 'arc_length', 'path_x', 'path_y']
     Feature selection summary (top-5): ['y_min', 'path_y', 'x_kurt', 'y_kurt', 'arc_length']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ui_d4.csv
     [(b) Standardisation] LR: 0.825 +/- 0.112
-    $1   (UI) - User 0 held out -> acc = 0.920
-    $1   (UI) - User 1 held out -> acc = 0.770
-    $1   (UI) - User 2 held out -> acc = 0.790
-    $1   (UI) - User 3 held out -> acc = 0.800
-    $1   (UI) - User 4 held out -> acc = 0.780
-    $1   (UI) - User 5 held out -> acc = 0.850
-    $1   (UI) - User 6 held out -> acc = 0.920
-    $1   (UI) - User 7 held out -> acc = 0.880
-    $1   (UI) - User 8 held out -> acc = 0.910
+    $1   (UI) - User 0 held out -> acc = 0.910
+    $1   (UI) - User 1 held out -> acc = 0.790
+    $1   (UI) - User 2 held out -> acc = 0.750
+    $1   (UI) - User 3 held out -> acc = 0.780
+    $1   (UI) - User 4 held out -> acc = 0.790
+    $1   (UI) - User 5 held out -> acc = 0.860
+    $1   (UI) - User 6 held out -> acc = 0.900
+    $1   (UI) - User 7 held out -> acc = 0.860
+    $1   (UI) - User 8 held out -> acc = 0.920
     $1   (UI) - User 9 held out -> acc = 0.750
-    [(b) Standardisation] $1: 0.837 +/- 0.063
+    [(b) Standardisation] $1: 0.831 +/- 0.063
 
   (c) Standardisation + PCA denoising 3D->2D->3D
     Edit (UI) - User 0 held out -> acc = 0.730
@@ -1050,17 +1050,17 @@ Preprocessing
       ['x_min', 'x_max', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_kurt', 'speed_mean', 'accel_mean', 'accel_std', 'arc_length', 'bbox_diag', 'curv_mean', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z', 'evr_pc1', 'evr_pc2', 'evr_pc3']
     Feature selection summary (top-5): ['x_min', 'x_kurt', 'arc_length', 'path_y', 'x_skew']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ui_d4.csv
     [(c) Std + PCA denoise] LR: 0.708 +/- 0.062  [3 PCA EVR values added to LR feature vector]
-    $1   (UI) - User 0 held out -> acc = 0.730
-    $1   (UI) - User 1 held out -> acc = 0.720
+    $1   (UI) - User 0 held out -> acc = 0.770
+    $1   (UI) - User 1 held out -> acc = 0.700
     $1   (UI) - User 2 held out -> acc = 0.710
-    $1   (UI) - User 3 held out -> acc = 0.660
-    $1   (UI) - User 4 held out -> acc = 0.680
-    $1   (UI) - User 5 held out -> acc = 0.660
-    $1   (UI) - User 6 held out -> acc = 0.800
-    $1   (UI) - User 7 held out -> acc = 0.610
-    $1   (UI) - User 8 held out -> acc = 0.740
+    $1   (UI) - User 3 held out -> acc = 0.670
+    $1   (UI) - User 4 held out -> acc = 0.670
+    $1   (UI) - User 5 held out -> acc = 0.690
+    $1   (UI) - User 6 held out -> acc = 0.770
+    $1   (UI) - User 7 held out -> acc = 0.680
+    $1   (UI) - User 8 held out -> acc = 0.730
     $1   (UI) - User 9 held out -> acc = 0.660
-    [(c) Std + PCA denoise] $1: 0.697 +/- 0.051
+    [(c) Std + PCA denoise] $1: 0.705 +/- 0.038
 
   ------------------------------------------------------------
   Best preprocessing per method - Domain 4 (UI):
@@ -1070,14 +1070,14 @@ Preprocessing
     DT              : (b) Standardisation  (mean acc = 0.813 +/- 0.072)
     RF              : (b) Standardisation  (mean acc = 0.864 +/- 0.088)
     LR              : (a) No preprocessing  (mean acc = 0.851 +/- 0.105)
-    $1              : (b) Standardisation  (mean acc = 0.837 +/- 0.063)
+    $1              : (b) Standardisation  (mean acc = 0.831 +/- 0.063)
 
   Ablation summary - Domain 4 (UI):
 Method                              $1               DT              DTW    Edit Distance               LR               RF
 Preprocessing                                                                                                              
-(a) No preprocessing   0.820 +/- 0.085  0.692 +/- 0.097  0.486 +/- 0.117  0.492 +/- 0.149  0.851 +/- 0.105  0.827 +/- 0.083
-(b) Standardisation    0.837 +/- 0.063  0.813 +/- 0.072  0.865 +/- 0.078  0.837 +/- 0.090  0.825 +/- 0.112  0.864 +/- 0.088
-(c) Std + PCA denoise  0.697 +/- 0.051  0.573 +/- 0.066  0.752 +/- 0.045  0.702 +/- 0.085  0.708 +/- 0.062  0.718 +/- 0.067
+(a) No preprocessing   0.821 +/- 0.085  0.692 +/- 0.097  0.486 +/- 0.117  0.492 +/- 0.149  0.851 +/- 0.105  0.827 +/- 0.083
+(b) Standardisation    0.831 +/- 0.063  0.813 +/- 0.072  0.865 +/- 0.078  0.837 +/- 0.090  0.825 +/- 0.112  0.864 +/- 0.088
+(c) Std + PCA denoise  0.705 +/- 0.038  0.573 +/- 0.066  0.752 +/- 0.045  0.702 +/- 0.085  0.708 +/- 0.062  0.718 +/- 0.067
   Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/ablation/ablation_domain4_ui.csv
 
 === Ablation Study - Domain 4 - User-Dependent ===
@@ -1276,17 +1276,17 @@ Preprocessing
       ['x_min', 'x_max', 'x_range', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_kurt', 'speed_std', 'accel_mean', 'accel_std', 'arc_length', 'bbox_diag', 'speed_seg3', 'path_x', 'path_y']
     Feature selection summary (top-5): ['x_kurt', 'y_min', 'y_kurt', 'path_y', 'y_max']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ud_d4.csv
     [(b) Standardisation] LR: 0.968 +/- 0.018
-    $1   (UD) - Fold 0 -> acc = 0.900
-    $1   (UD) - Fold 1 -> acc = 0.990
+    $1   (UD) - Fold 0 -> acc = 0.920
+    $1   (UD) - Fold 1 -> acc = 0.980
     $1   (UD) - Fold 2 -> acc = 0.960
     $1   (UD) - Fold 3 -> acc = 0.980
     $1   (UD) - Fold 4 -> acc = 0.990
-    $1   (UD) - Fold 5 -> acc = 0.960
-    $1   (UD) - Fold 6 -> acc = 0.940
+    $1   (UD) - Fold 5 -> acc = 0.950
+    $1   (UD) - Fold 6 -> acc = 0.930
     $1   (UD) - Fold 7 -> acc = 0.970
     $1   (UD) - Fold 8 -> acc = 0.920
-    $1   (UD) - Fold 9 -> acc = 0.940
-    [(b) Standardisation] $1: 0.955 +/- 0.028
+    $1   (UD) - Fold 9 -> acc = 0.960
+    [(b) Standardisation] $1: 0.956 +/- 0.024
 
   (c) Standardisation + PCA denoising 3D->2D->3D
     Edit (UD) - Fold 0 -> acc = 0.880
@@ -1377,17 +1377,17 @@ Preprocessing
       ['x_std', 'x_max', 'x_range', 'x_skew', 'x_kurt', 'y_min', 'y_max', 'y_range', 'y_skew', 'y_kurt', 'z_min', 'z_max', 'z_skew', 'speed_mean', 'speed_std', 'arc_length', 'speed_seg1', 'speed_seg2', 'speed_seg3', 'path_x', 'path_y', 'path_z']
     Feature selection summary (top-5): ['x_kurt', 'arc_length', 'path_y', 'y_min', 'y_max']  -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/feature_selection/feat_sel_lr_ud_d4.csv
     [(c) Std + PCA denoise] LR: 0.924 +/- 0.040  [3 PCA EVR values added to LR feature vector]
-    $1   (UD) - Fold 0 -> acc = 0.910
-    $1   (UD) - Fold 1 -> acc = 0.950
-    $1   (UD) - Fold 2 -> acc = 0.900
+    $1   (UD) - Fold 0 -> acc = 0.900
+    $1   (UD) - Fold 1 -> acc = 0.970
+    $1   (UD) - Fold 2 -> acc = 0.890
     $1   (UD) - Fold 3 -> acc = 0.890
     $1   (UD) - Fold 4 -> acc = 0.920
     $1   (UD) - Fold 5 -> acc = 0.940
-    $1   (UD) - Fold 6 -> acc = 0.900
-    $1   (UD) - Fold 7 -> acc = 0.930
-    $1   (UD) - Fold 8 -> acc = 0.890
+    $1   (UD) - Fold 6 -> acc = 0.890
+    $1   (UD) - Fold 7 -> acc = 0.940
+    $1   (UD) - Fold 8 -> acc = 0.870
     $1   (UD) - Fold 9 -> acc = 0.920
-    [(c) Std + PCA denoise] $1: 0.915 +/- 0.020
+    [(c) Std + PCA denoise] $1: 0.913 +/- 0.029
 
   ------------------------------------------------------------
   Best preprocessing per method - Domain 4 (UD):
@@ -1403,8 +1403,8 @@ Preprocessing
 Method                              $1               DT              DTW    Edit Distance               LR               RF
 Preprocessing                                                                                                              
 (a) No preprocessing   0.973 +/- 0.018  0.863 +/- 0.041  0.952 +/- 0.029  0.945 +/- 0.032  0.952 +/- 0.030  0.958 +/- 0.025
-(b) Standardisation    0.955 +/- 0.028  0.883 +/- 0.026  0.987 +/- 0.020  0.984 +/- 0.017  0.968 +/- 0.018  0.976 +/- 0.021
-(c) Std + PCA denoise  0.915 +/- 0.020  0.745 +/- 0.072  0.952 +/- 0.028  0.949 +/- 0.031  0.924 +/- 0.040  0.901 +/- 0.048
+(b) Standardisation    0.956 +/- 0.024  0.883 +/- 0.026  0.987 +/- 0.020  0.984 +/- 0.017  0.968 +/- 0.018  0.976 +/- 0.021
+(c) Std + PCA denoise  0.913 +/- 0.029  0.745 +/- 0.072  0.952 +/- 0.028  0.949 +/- 0.031  0.924 +/- 0.040  0.901 +/- 0.048
   Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/ablation/ablation_domain4_ud.csv
   [policy] $1 forced to '(a) No preprocessing' (was '(b) Standardisation') per Wobbrock 2007 / Kratz & Rohs 2010.
 
@@ -1437,7 +1437,7 @@ Preprocessing
   Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_independent_rf.csv
   LR              : (b) Standardisation    mean = 0.870 +/- 0.093
   Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_independent_lr.csv
-  $1              : (a) No preprocessing   mean = 0.993 +/- 0.010
+  $1              : (a) No preprocessing   mean = 0.992 +/- 0.011
   Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain1_user_independent_dollar.csv
 
 === Main Evaluation - Domain 1 - User-Dependent (from ablation) ===
@@ -1465,7 +1465,7 @@ Preprocessing
   Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_independent_rf.csv
   LR              : (a) No preprocessing   mean = 0.851 +/- 0.105
   Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_independent_lr.csv
-  $1              : (a) No preprocessing   mean = 0.820 +/- 0.085
+  $1              : (a) No preprocessing   mean = 0.821 +/- 0.085
   Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/fold_results/results_domain4_user_independent_dollar.csv
 
 === Main Evaluation - Domain 4 - User-Dependent (from ablation) ===
@@ -1494,11 +1494,11 @@ Preprocessing
   RAW Wilcoxon p-value matrix (symmetric):
                Edit Distance     DTW      DT      RF      LR      $1
 Edit Distance            NaN  0.0016  0.0754  0.2570  0.7411  0.0000
-DTW                   0.0016     NaN  0.0005  0.3243  0.0335  0.0005
+DTW                   0.0016     NaN  0.0005  0.3243  0.0335  0.0009
 DT                    0.0754  0.0005     NaN  0.0000  0.0526  0.0000
 RF                    0.2570  0.3243  0.0000     NaN  0.0158  0.0000
 LR                    0.7411  0.0335  0.0526  0.0158     NaN  0.0000
-$1                    0.0000  0.0005  0.0000  0.0000  0.0000     NaN
+$1                    0.0000  0.0009  0.0000  0.0000  0.0000     NaN
 
   Method A           Method B               p_raw       p_BH   BH sig
   ----------------------------------------------------------------------
@@ -1507,10 +1507,10 @@ $1                    0.0000  0.0005  0.0000  0.0000  0.0000     NaN
   Edit Distance      RF                    0.2570     0.2966       no
   Edit Distance      LR                    0.7411     0.7411       no
   Edit Distance      $1                    0.0000     0.0000    YES *
-  DTW                DT                    0.0005     0.0011    YES *
+  DTW                DT                    0.0005     0.0013    YES *
   DTW                RF                    0.3243     0.3475       no
   DTW                LR                    0.0335     0.0502       no
-  DTW                $1                    0.0005     0.0011    YES *
+  DTW                $1                    0.0009     0.0018    YES *
   DT                 RF                    0.0000     0.0000    YES *
   DT                 LR                    0.0526     0.0718       no
   DT                 $1                    0.0000     0.0000    YES *
@@ -1518,7 +1518,7 @@ $1                    0.0000  0.0005  0.0000  0.0000  0.0000     NaN
   RF                 $1                    0.0000     0.0000    YES *
   LR                 $1                    0.0000     0.0000    YES *
 
-  Best mean accuracy: $1 (0.993)
+  Best mean accuracy: $1 (0.992)
   -> $1 is significantly better than ALL others (BH)
   Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/statistical_tests/p_values_domain1_user_independent.csv
   Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/figures/statistical_tests/p_values_heatmap_domain1.png
@@ -1534,12 +1534,12 @@ $1                    0.0000  0.0005  0.0000  0.0000  0.0000     NaN
 
   RAW Wilcoxon p-value matrix (symmetric):
                Edit Distance     DTW      DT      RF      LR      $1
-Edit Distance            NaN  0.3788  0.3503  0.3227  0.6195  0.4660
-DTW                   0.3788     NaN  0.0333  0.9261  0.5264  0.0576
-DT                    0.3503  0.0333     NaN  0.0004  0.0680  0.7998
-RF                    0.3227  0.9261  0.0004     NaN  0.7439  0.1931
-LR                    0.6195  0.5264  0.0680  0.7439     NaN  0.1966
-$1                    0.4660  0.0576  0.7998  0.1931  0.1966     NaN
+Edit Distance            NaN  0.3788  0.3503  0.3227  0.6195  0.4402
+DTW                   0.3788     NaN  0.0333  0.9261  0.5264  0.0599
+DT                    0.3503  0.0333     NaN  0.0004  0.0680  0.8153
+RF                    0.3227  0.9261  0.0004     NaN  0.7439  0.1751
+LR                    0.6195  0.5264  0.0680  0.7439     NaN  0.1786
+$1                    0.4402  0.0599  0.8153  0.1751  0.1786     NaN
 
   Method A           Method B               p_raw       p_BH   BH sig
   ----------------------------------------------------------------------
@@ -1547,17 +1547,17 @@ $1                    0.4660  0.0576  0.7998  0.1931  0.1966     NaN
   Edit Distance      DT                    0.3503     0.6313       no
   Edit Distance      RF                    0.3227     0.6313       no
   Edit Distance      LR                    0.6195     0.7744       no
-  Edit Distance      $1                    0.4660     0.6990       no
+  Edit Distance      $1                    0.4402     0.6603       no
   DTW                DT                    0.0333     0.2498       no
   DTW                RF                    0.9261     0.9261       no
   DTW                LR                    0.5264     0.7178       no
-  DTW                $1                    0.0576     0.2552       no
+  DTW                $1                    0.0599     0.2552       no
   DT                 RF                    0.0004     0.0064    YES *
   DT                 LR                    0.0680     0.2552       no
-  DT                 $1                    0.7998     0.8569       no
-  RF                 LR                    0.7439     0.8569       no
-  RF                 $1                    0.1931     0.4914       no
-  LR                 $1                    0.1966     0.4914       no
+  DT                 $1                    0.8153     0.8736       no
+  RF                 LR                    0.7439     0.8583       no
+  RF                 $1                    0.1751     0.4466       no
+  LR                 $1                    0.1786     0.4466       no
 
   Best mean accuracy: DTW (0.865)
   -> DTW NOT significantly better than Edit Distance (BH p=0.6313)
@@ -1568,7 +1568,7 @@ $1                    0.4660  0.0576  0.7998  0.1931  0.1966     NaN
   Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/tables/statistical_tests/p_values_domain4_user_independent.csv
   Saved -> /Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/figures/statistical_tests/p_values_heatmap_domain4.png
 
-  Best model - Domain 1 (UI): $1 (0.993)  [(a) No preprocessing]
+  Best model - Domain 1 (UI): $1 (0.992)  [(a) No preprocessing]
 
   Best model - Domain 4 (UI): DTW (0.865)  [(b) Standardisation]
 
@@ -1577,8 +1577,8 @@ $1                    0.4660  0.0576  0.7998  0.1931  0.1966     NaN
   Train-vs-test gap (only parametric classifiers; DTW/Edit/$1 are 1-NN, train acc = 1.0 by construction):
   -----------------------------------------------------------------
    D1-UI DT  train=0.955  test=0.827  gap=+0.128  <-- higher gap
-   D1-UI RF  train=0.992  test=0.912  gap=+0.080  <-- higher gap
-   D1-UI LR  train=0.956  test=0.870  gap=+0.086  <-- higher gap
+   D1-UI RF  train=0.992  test=0.912  gap=+0.080
+   D1-UI LR  train=0.956  test=0.870  gap=+0.086
    D1-UD DT  train=0.985  test=0.875  gap=+0.110  <-- higher gap
    D1-UD RF  train=0.994  test=0.956  gap=+0.038
    D1-UD LR  train=0.989  test=0.956  gap=+0.033
@@ -1605,9 +1605,9 @@ UI = user-independent | UD = user-dependent
 Method                       $1               DT              DTW    Edit Distance               LR               RF
 Domain Setting                                                                                                      
 1      UD       0.999 +/- 0.003  0.875 +/- 0.049  0.988 +/- 0.010  0.972 +/- 0.022  0.956 +/- 0.037  0.956 +/- 0.035
-       UI       0.993 +/- 0.010  0.827 +/- 0.081  0.918 +/- 0.097  0.869 +/- 0.138  0.870 +/- 0.093  0.912 +/- 0.055
+       UI       0.992 +/- 0.011  0.827 +/- 0.081  0.918 +/- 0.097  0.869 +/- 0.138  0.870 +/- 0.093  0.912 +/- 0.055
 4      UD       0.973 +/- 0.018  0.883 +/- 0.026  0.987 +/- 0.020  0.984 +/- 0.017  0.968 +/- 0.018  0.976 +/- 0.021
-       UI       0.820 +/- 0.085  0.813 +/- 0.072  0.865 +/- 0.078  0.837 +/- 0.090  0.851 +/- 0.105  0.864 +/- 0.088
+       UI       0.821 +/- 0.085  0.813 +/- 0.072  0.865 +/- 0.078  0.837 +/- 0.090  0.851 +/- 0.105  0.864 +/- 0.088
 
   Preprocessing selected per method (UI / UD):
 
