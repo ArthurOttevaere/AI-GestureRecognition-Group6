@@ -1,0 +1,19 @@
+Preprocessing,Method,Mean,Std,Note,Result
+(a) No preprocessing,Edit Distance,0.442,0.1417603611733548,,0.442 +/- 0.142
+(a) No preprocessing,DTW,0.48600000000000004,0.11689311356961964,,0.486 +/- 0.117
+(a) No preprocessing,DT,0.665,0.1199374837154757,,0.665 +/- 0.120
+(a) No preprocessing,RF,0.8360000000000001,0.06529931086925803,,0.836 +/- 0.065
+(a) No preprocessing,SVM,0.7870000000000001,0.07899999999999999,,0.787 +/- 0.079
+(a) No preprocessing,$1,0.825,0.08321658488546618,,0.825 +/- 0.083
+(b) Standardisation,Edit Distance,0.857,0.06812488532100439,,0.857 +/- 0.068
+(b) Standardisation,DTW,0.8649999999999999,0.07839005038906405,,0.865 +/- 0.078
+(b) Standardisation,DT,0.8150000000000001,0.05333854141237834,,0.815 +/- 0.053
+(b) Standardisation,RF,0.891,0.05838664230797999,,0.891 +/- 0.058
+(b) Standardisation,SVM,0.8530000000000001,0.06957729514719584,,0.853 +/- 0.070
+(b) Standardisation,$1,0.867,0.07470609078247903,,0.867 +/- 0.075
+(c) Std + PCA denoise,Edit Distance,0.7190000000000001,0.07777531742140305,,0.719 +/- 0.078
+(c) Std + PCA denoise,DTW,0.752,0.04467661580737736,,0.752 +/- 0.045
+(c) Std + PCA denoise,DT,0.569,0.06624952830020753,3 PCA EVR values added to DT feature vector,0.569 +/- 0.066
+(c) Std + PCA denoise,RF,0.75,0.07681145747868606,3 PCA EVR values added to RF feature vector,0.750 +/- 0.077
+(c) Std + PCA denoise,SVM,0.663,0.062457985878508766,3 PCA EVR values added to SVM feature vector,0.663 +/- 0.062
+(c) Std + PCA denoise,$1,0.738,0.06823488843692793,,0.738 +/- 0.068
