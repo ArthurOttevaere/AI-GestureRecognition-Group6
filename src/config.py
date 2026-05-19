@@ -110,7 +110,7 @@ DIR_TBL_STATS            = os.path.join(OUTPUTS_DIR, "tables",  "statistical_tes
 DIR_TBL_SUMMARY          = os.path.join(OUTPUTS_DIR, "tables",  "summary")
 DIR_TBL_OVERFITTING      = os.path.join(OUTPUTS_DIR, "tables",  "overfitting")
 DIR_TBL_FEAT_SEL         = os.path.join(OUTPUTS_DIR, "tables",  "feature_selection")
-DIR_DOC                  = os.path.join(OUTPUTS_DIR, "Documentation")
+DIR_DOC                  = os.path.join(OUTPUTS_DIR, "logs")
 
 for _d in [DIR_FIG_EXPLORE, DIR_FIG_PCA, DIR_FIG_VC, DIR_FIG_FI,
            DIR_FIG_CM, DIR_FIG_STATS, DIR_FIG_LEARNING_CURVES,

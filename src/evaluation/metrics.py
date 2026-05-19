@@ -16,7 +16,7 @@ from src.models.parametric import (
     _rf_fit_with_grid, _dt_fit_with_grid, _lr_fit_with_grid,
     _select_features_per_fold,
 )
-from utils import _safe_filename
+from src.utils import _safe_filename
 
 
 # ==============================================================================

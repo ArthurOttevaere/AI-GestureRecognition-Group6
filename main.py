@@ -273,7 +273,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-import utils
+from src import utils
 from src.config import (
     DOMAIN1_DIR, DOMAIN4_DIR, PCA_N_KEEP, DOLLAR_N,
     DIR_FIG_EXPLORE, DIR_FIG_PCA, DIR_FIG_VC,
