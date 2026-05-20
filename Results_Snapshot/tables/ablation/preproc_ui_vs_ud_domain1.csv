@@ -1,0 +1,7 @@
+Domain,Method,BestPrepUI,MeanUI,BestPrepUD,MeanUD,Divergent
+1,Edit Distance,(b) Standardisation,0.869,(b) Standardisation,0.9720000000000001,False
+1,DTW,(b) Standardisation,0.9179999999999999,(b) Standardisation,0.9880000000000001,False
+1,DT,(b) Standardisation,0.827,(b) Standardisation,0.875,False
+1,RF,(b) Standardisation,0.9120000000000001,(b) Standardisation,0.9560000000000001,False
+1,LR,(b) Standardisation,0.8699999999999999,(b) Standardisation,0.9560000000000001,False
+1,$1,(a) No preprocessing,0.992,(a) No preprocessing,0.999,False
