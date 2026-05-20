@@ -100,7 +100,8 @@ def plot_all_gesture_classes_2d(data: list, labels: list, users: list,
     plt.tight_layout()
     if save_path:
         plt.savefig(save_path, dpi=200, bbox_inches="tight")
-    plt.show()
+    if show:
+        plt.show()
 
 
 # ==============================================================================

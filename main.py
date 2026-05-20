@@ -292,7 +292,7 @@ from src.evaluation.crossval import (
     validation_curve_kclusters, validation_curve_knn,
 )
 from src.evaluation.metrics import (
-    plot_sequence_lengths, plot_gesture_samples,
+    plot_sequence_lengths, plot_all_gesture_classes_2d,
     draw_best_model_cm, plot_learning_curve_method,
 )
 from src.evaluation.stats import generate_pvalue_table
@@ -379,19 +379,19 @@ Examples:
                               save_path=os.path.join(DIR_FIG_EXPLORE,
                                                      "d1_sequence_lengths.png"),
                               show=show)
-        plot_gesture_samples(data1, labels1, users1, "Domain 1",
-                             save_path=os.path.join(DIR_FIG_EXPLORE,
-                                                    "d1_gesture_samples.png"),
-                             show=show)
+        plot_all_gesture_classes_2d(data1, labels1, users1, "Domain 1",
+                                    save_path=os.path.join(DIR_FIG_EXPLORE,
+                                                           "d1_gesture_samples.png"),
+                                    show=show)
     if 4 in domains_to_run:
         plot_sequence_lengths(data4, labels4, "Domain 4",
                               save_path=os.path.join(DIR_FIG_EXPLORE,
                                                      "d4_sequence_lengths.png"),
                               show=show)
-        plot_gesture_samples(data4, labels4, users4, "Domain 4",
-                             save_path=os.path.join(DIR_FIG_EXPLORE,
-                                                    "d4_gesture_samples.png"),
-                             show=show)
+        plot_all_gesture_classes_2d(data4, labels4, users4, "Domain 4",
+                                    save_path=os.path.join(DIR_FIG_EXPLORE,
+                                                           "d4_gesture_samples.png"),
+                                    show=show)
 
     # -- 3. Standardisation --------------------------------------------------
     print("\n=== Standardisation ===")
