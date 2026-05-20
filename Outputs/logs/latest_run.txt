@@ -1,1 +1,1 @@
-/Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/Documentation/run_20260519_153209.txt
+/Users/arthurottevaere/AI-GestureRecognition-Group6/Outputs/logs/run_20260520_182211.txt
