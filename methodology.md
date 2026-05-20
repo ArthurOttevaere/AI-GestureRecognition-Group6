@@ -27,13 +27,13 @@
 6. **Phase 6** — Hyperparameter validation curves (empirical iterative selection)
    - K_CLUSTERS optimum from sensitivity analysis is USED in the rest of the pipeline
    - KNN_K is FORCED to 1 (1-NN) regardless of the validation curve outcome (see Major decision #8)
-7. **Phase 7** — Statistical tests
+7. **Phase 7** — Statistical tests (User-independent setting only)
    - Paired Wilcoxon signed-rank test on n=100 paired observations (10 gestures × 10 users), one accuracy per (gesture, user) pair for each method
    - Benjamini-Hochberg FDR correction (BH)
    - Pairwise p-value matrix (6×6 = 15 pairs) saved as CSV + heatmap
 8. **Phase 8** — Overfitting diagnostic
-   - Per-fold train-acc vs test-acc gap for DT/RF/LR (parametric classifiers). DTW/Edit/$1 are 1-NN, so train accuracy is 1.0 by construction and not reported.
-   - `sklearn.model_selection.learning_curve` for DT/RF/LR on each domain/setting: train score and validation score as a function of training set size. Wide gap = high variance (overfitting). Reference: Hastie et al. (2009) §7.10.
+   - Per-fold train-acc vs test-acc gap for DT/RF/LR (parametric classifiers), run in both UI and UD. DTW/Edit/$1 are 1-NN, so train accuracy is 1.0 by construction and not reported.
+   - `sklearn.model_selection.learning_curve` for DT/RF/LR on each domain (UI setting only): train score and validation score as a function of training set size. Wide gap = high variance (overfitting). Reference: Hastie et al. (2009) §7.10.
 
 ## Outputs
 
@@ -43,7 +43,7 @@ Outputs are organised under `Outputs/` in nested subfolders by type:
 figures/{exploratory, pca_denoising, validation_curves,
          feature_importance, confusion_matrices, statistical_tests}
 tables/{ablation, fold_results, statistical_tests, summary}
-Documentation/
+logs/
 ```
 
 ## Major Scientific Decisions
@@ -95,7 +95,7 @@ Documentation/
 
 15. **Feature standardisation for LR** via `StandardScaler` inside a sklearn `Pipeline`, fitted on each inner-CV training split only. LR (lbfgs solver): gradient magnitudes are scale-dependent; scaling ensures balanced gradient steps and reliable convergence. `max_iter` increased from 2000 to 5000 to guarantee convergence across all C values in the grid (sklearn ConvergenceWarning fix).
 
-16. **Overfitting diagnostic.** For each parametric classifier (DT, RF, LR) we record train and test accuracy per fold; the average gap train-test is reported. sklearn `learning_curve` is run on each (domain, setting) producing train/validation score curves as a function of training-set size (Hastie et al. 2009 §7.10; Domingos 2012).
+16. **Overfitting diagnostic.** For each parametric classifier (DT, RF, LR) we record train and test accuracy per fold (both UI and UD); the average gap train-test is reported. sklearn `learning_curve` is run on each domain (UI setting only) producing train/validation score curves as a function of training-set size (Hastie et al. 2009 §7.10; Domingos 2012).
 
 ## References
 
