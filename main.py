@@ -315,25 +315,100 @@ def _data_for(best_entry: dict,
     return denoised, evr
 
 
+def _interactive_menu() -> tuple[list[int], bool]:
+    """Display a startup menu and return (domains_to_run, show_plots)."""
+    sep = "=" * 60
+    print(sep)
+    print("  MLSM2154 — Gesture Recognition Pipeline  |  Group 6")
+    print(sep)
+    print()
+    print("  This pipeline runs the full ML experiment:")
+    print("    • Data loading & exploratory visualisation")
+    print("    • Standardisation + PCA denoising")
+    print("    • Baseline methods  (DTW, Edit Distance, $1 3D)")
+    print("    • Advanced methods  (Decision Tree, Random Forest, LR)")
+    print("    • Cross-validation  (user-independent + user-dependent)")
+    print("    • Ablation study, statistical tests, confusion matrices")
+    print("    • Overfitting diagnostic & learning curves")
+    print()
+    print("  Available domains:")
+    print("    [1]  Domain 1  (accelerometer gestures, 10 users)")
+    print("    [4]  Domain 4  (accelerometer gestures, 10 users)")
+    print()
+
+    # --- Domain selection ---
+    print(sep)
+    print("  Which domain(s) do you want to run?")
+    print()
+    print("    [1]  Domain 1 only")
+    print("    [4]  Domain 4 only")
+    print("    [b]  Both domains  (default)")
+    print()
+    while True:
+        raw = input("  Your choice [1 / 4 / b]: ").strip().lower()
+        if raw in ("", "b", "both"):
+            domains_to_run = [1, 4]
+            break
+        if raw == "1":
+            domains_to_run = [1]
+            break
+        if raw == "4":
+            domains_to_run = [4]
+            break
+        print("  Invalid choice. Please enter 1, 4, or b.")
+
+    print()
+
+    # --- Display figures ---
+    print(sep)
+    print("  Display figures interactively on screen?")
+    print()
+    print("    [y]  Yes — open each figure in a window")
+    print("    [n]  No  — save to Outputs/ only  (default, headless)")
+    print()
+    while True:
+        raw = input("  Your choice [y / n]: ").strip().lower()
+        if raw in ("", "n", "no"):
+            show = False
+            break
+        if raw in ("y", "yes"):
+            show = True
+            break
+        print("  Invalid choice. Please enter y or n.")
+
+    print()
+    domain_label = (
+        "Domain 1 only" if domains_to_run == [1]
+        else "Domain 4 only" if domains_to_run == [4]
+        else "Both domains"
+    )
+    print(sep)
+    print(f"  Running  : {domain_label}")
+    print(f"  Figures  : {'displayed on screen' if show else 'saved to Outputs/ (headless)'}")
+    print(sep)
+    print()
+    return domains_to_run, show
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Gesture Recognition ML Pipeline — Group 6",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py                      # Full pipeline, both domains, headless
-  python main.py --domain 1           # Domain 1 only
-  python main.py --domain 4           # Domain 4 only
-  python main.py --show-plots         # Display figures interactively
+  python main.py                      # Interactive menu (no flags)
+  python main.py --domain 1           # Domain 1 only, headless
+  python main.py --domain 4           # Domain 4 only, headless
+  python main.py --show-plots         # Both domains + display figures
   python main.py --domain 1 --show-plots
         """,
     )
     parser.add_argument(
         "--domain",
         choices=["1", "4", "both"],
-        default="both",
+        default=None,
         metavar="{1,4,both}",
-        help="Which domain(s) to process (default: both)",
+        help="Which domain(s) to process (default: interactive menu)",
     )
     parser.add_argument(
         "--show-plots",
@@ -342,8 +417,13 @@ Examples:
         help="Display figures interactively (default: save only, headless mode)",
     )
     args = parser.parse_args()
-    show = args.show_plots
-    domains_to_run = [1, 4] if args.domain == "both" else [int(args.domain)]
+
+    if args.domain is None and not args.show_plots:
+        domains_to_run, show = _interactive_menu()
+    else:
+        show = args.show_plots
+        domains_to_run = [1, 4] if (args.domain is None or args.domain == "both") \
+            else [int(args.domain)]
 
     # Logger must be initialised FIRST, before any print()
     sys.stdout = utils.Logger(DIR_DOC)
