@@ -46,41 +46,61 @@ def plot_sequence_lengths(data: list, labels: list,
     if show:
         plt.show()
 
+def plot_all_gesture_classes_2d(data: list, labels: list, users: list,
+                                 domain_name: str,
+                                 class_names: dict | None = None,
+                                 save_path: str | None = None,
+                                 show: bool = False) -> None:
 
-def plot_gesture_samples(data: list, labels: list, users: list,
-                          domain_name: str, n_classes: int = 4,
-                          n_subjects: int = 3,
-                          save_path: str | None = None,
-                          show: bool = False) -> None:
-    gesture_classes = sorted(set(labels))[:n_classes]
-    subject_ids     = sorted(set(users))[:n_subjects]
-    fig = plt.figure(figsize=(4 * n_subjects, 3.5 * n_classes))
-    plot_idx = 1
-    for gc in gesture_classes:
-        for s in subject_ids:
-            samples = [data[i] for i in range(len(data))
-                       if labels[i] == gc and users[i] == s]
-            ax = fig.add_subplot(n_classes, n_subjects, plot_idx,
-                                  projection="3d")
-            for seq in samples[:3]:
-                ax.plot(seq[:, 0], seq[:, 1], seq[:, 2],
-                        alpha=0.6, linewidth=0.8)
-                ax.scatter(*seq[0],  color="green", s=12, zorder=5)
-                ax.scatter(*seq[-1], color="red",   s=12, zorder=5)
-            ax.set_title(f"Gesture {gc} | Subject {s}", fontsize=8)
-            ax.set_xlabel("x", fontsize=6)
-            ax.set_ylabel("y", fontsize=6)
-            ax.set_zlabel("z", fontsize=6)
-            ax.tick_params(labelsize=5)
-            plot_idx += 1
-    plt.suptitle(
-        f"{domain_name} - 3D trajectories (green=start, red=end)",
-        fontsize=10, y=1.01)
+    """
+    Display one representative trajectory per gesture class as a 2D
+    projection (XY plane), arranged in a 2-row grid of 5 columns,
+    mimicking the style of Huang et al. (2019, Fig. 9).
+    
+    The gesture shown is the median-length sample across all users,
+    which is more representative than always picking user 0.
+    """
+    gesture_classes = sorted(set(labels))
+    n_classes = len(gesture_classes)
+    ncols = 5
+    nrows = (n_classes + ncols - 1) // ncols
+
+    fig, axes = plt.subplots(nrows, ncols,
+                             figsize=(2.8 * ncols, 2.8 * nrows))
+    axes = axes.flatten()
+
+    for idx, gc in enumerate(gesture_classes):
+        # Pick the sample closest to the median length for this class
+        candidates = [(i, len(data[i])) for i in range(len(data))
+                      if labels[i] == gc]
+        lengths = [l for _, l in candidates]
+        median_len = float(np.median(lengths))
+        best_idx = min(candidates, key=lambda x: abs(x[1] - median_len))[0]
+        seq = data[best_idx]
+
+        ax = axes[idx]
+        ax.plot(seq[:, 0], seq[:, 1],
+                color="black", linewidth=1.5, solid_capstyle="round")
+        ax.scatter(seq[0,  0], seq[0,  1],
+                   color="green", s=30, zorder=5)
+        ax.scatter(seq[-1, 0], seq[-1, 1],
+                   color="red",   s=30, zorder=5)
+        ax.set_aspect("equal")
+        ax.axis("off")
+
+        label_str = (class_names[gc] if class_names and gc in class_names
+                     else str(gc))
+        ax.set_title(label_str, fontsize=9, pad=3)
+
+    # Hide any unused axes
+    for idx in range(n_classes, len(axes)):
+        axes[idx].set_visible(False)
+
+    fig.suptitle(domain_name, fontsize=12, fontweight="bold", y=1.01)
     plt.tight_layout()
     if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
-    if show:
-        plt.show()
+        plt.savefig(save_path, dpi=200, bbox_inches="tight")
+    plt.show()
 
 
 # ==============================================================================
